@@ -1,0 +1,24 @@
+{
+  "cache_hit": false,
+  "data": {
+    "content_text": "Example Domain",
+    "entity_type": "WebDocument",
+    "raw_available": true,
+    "source": "generic_web",
+    "source_url": "https://example.com/",
+    "title": "Example Domain",
+    "url": "https://example.com/"
+  },
+  "diagnostics": {
+    "block_type": null,
+    "evidence": [],
+    "likely_blocked": false,
+    "retryable": false,
+    "suggested_retry": null
+  },
+  "entity_type": "WebDocument",
+  "errors": [],
+  "mode_used": "http_fetch",
+  "source": "generic_web",
+  "success": true
+}

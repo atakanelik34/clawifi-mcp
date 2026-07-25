@@ -1,0 +1,34 @@
+{
+  "confidence": 0.88,
+  "errors": [],
+  "fields": {
+    "title": {
+      "confidence": 0.88,
+      "field": "title",
+      "reason": "HTML title",
+      "selector": null,
+      "snippet": "Example Domain",
+      "source": "meta:title",
+      "type": "string"
+    }
+  },
+  "mode": "infer",
+  "refinement": {
+    "enabled": false,
+    "reason": "provider_not_configured"
+  },
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "title": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "title"
+    ],
+    "type": "object"
+  },
+  "success": true,
+  "warnings": []
+}

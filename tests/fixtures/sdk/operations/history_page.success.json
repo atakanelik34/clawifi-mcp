@@ -1,0 +1,12 @@
+{
+  "items": [
+    {
+      "created_at": "2026-01-01T12:00:00Z",
+      "kind": "fetch",
+      "operation_id": "op_sdk_fixture",
+      "status": "succeeded",
+      "updated_at": "2026-01-01T12:00:00Z"
+    }
+  ],
+  "next_cursor": "cursor_sdk_fixture_next"
+}

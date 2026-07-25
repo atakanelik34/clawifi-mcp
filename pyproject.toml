@@ -1,0 +1,42 @@
+[project]
+name = "clawifi"
+version = "0.1.0"
+description = "Official Python SDK, CLI, and MCP server for Clawifi, the agent-native internet gateway."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = [
+  "httpx>=0.27.2",
+  "mcp>=1.2.0",
+]
+classifiers = [
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.urls]
+Homepage = "https://clawifi.qzz.io"
+Documentation = "https://clawifi.qzz.io/docs"
+Repository = "https://github.com/atakanelik34/clawifi-mcp"
+
+[project.scripts]
+clawifi = "clawifi.cli:run"
+clawifi-mcp = "clawifi.mcp_server:run"
+
+[project.optional-dependencies]
+test = [
+  "pytest>=8.3.3",
+  "pytest-asyncio>=0.24.0",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+clawifi = ["py.typed"]

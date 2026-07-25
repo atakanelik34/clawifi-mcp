@@ -1,0 +1,103 @@
+{
+  "operation_count": 12,
+  "operations": {
+    "account": {
+      "auth_required": true,
+      "error_fixture": "operations/account.error.json",
+      "method": "GET",
+      "operation_id": "account_me_account_me_get",
+      "path": "/account/me",
+      "success_fixture": "operations/account.success.json"
+    },
+    "crawl": {
+      "auth_required": true,
+      "error_fixture": "operations/crawl.error.json",
+      "method": "POST",
+      "operation_id": "crawl_site_crawl_post",
+      "path": "/crawl",
+      "success_fixture": "operations/crawl.success.json"
+    },
+    "credits": {
+      "auth_required": true,
+      "error_fixture": "operations/credits.error.json",
+      "method": "GET",
+      "operation_id": "usage_summary_usage_get",
+      "path": "/usage",
+      "success_fixture": "operations/credits.success.json"
+    },
+    "extract": {
+      "auth_required": true,
+      "error_fixture": "operations/extract.error.json",
+      "method": "POST",
+      "operation_id": "extract_url_extract_post",
+      "path": "/extract",
+      "success_fixture": "operations/extract.success.json"
+    },
+    "fetch": {
+      "auth_required": true,
+      "error_fixture": "operations/fetch.error.json",
+      "method": "POST",
+      "operation_id": "fetch_url_fetch_post",
+      "path": "/fetch",
+      "success_fixture": "operations/fetch.success.json"
+    },
+    "history_page": {
+      "auth_required": true,
+      "error_fixture": "operations/history_page.error.json",
+      "method": "GET",
+      "operation_id": "list_history_history_get",
+      "path": "/history",
+      "success_fixture": "operations/history_page.success.json"
+    },
+    "job": {
+      "auth_required": true,
+      "error_fixture": "operations/job.error.json",
+      "method": "POST",
+      "operation_id": "create_job_jobs_post",
+      "path": "/jobs",
+      "success_fixture": "operations/job.success.json"
+    },
+    "map": {
+      "auth_required": true,
+      "error_fixture": "operations/map.error.json",
+      "method": "POST",
+      "operation_id": "map_site_map_post",
+      "path": "/map",
+      "success_fixture": "operations/map.success.json"
+    },
+    "monitor": {
+      "auth_required": true,
+      "error_fixture": "operations/monitor.error.json",
+      "method": "GET",
+      "operation_id": "list_monitors_monitors_get",
+      "path": "/monitors",
+      "success_fixture": "operations/monitor.success.json"
+    },
+    "schema_assist": {
+      "auth_required": true,
+      "error_fixture": "operations/schema_assist.error.json",
+      "method": "POST",
+      "operation_id": "schema_assist_schema_assist_post",
+      "path": "/schema/assist",
+      "success_fixture": "operations/schema_assist.success.json"
+    },
+    "scrape": {
+      "auth_required": true,
+      "error_fixture": "operations/scrape.error.json",
+      "method": "POST",
+      "operation_id": "scrape_url_scrape_post",
+      "path": "/scrape",
+      "success_fixture": "operations/scrape.success.json"
+    },
+    "search_free": {
+      "auth_required": true,
+      "error_fixture": "operations/search_free.error.json",
+      "method": "POST",
+      "operation_id": "search_free_search_free_post",
+      "path": "/search/free",
+      "success_fixture": "operations/search_free.success.json"
+    }
+  },
+  "schema_version": 1,
+  "source": "tests/fixtures/contracts/openapi-v1.json"
+}

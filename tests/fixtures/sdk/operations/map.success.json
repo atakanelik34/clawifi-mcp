@@ -1,0 +1,14 @@
+{
+  "discovered_count": 1,
+  "errors": [],
+  "success": true,
+  "url": "https://example.com/",
+  "urls": [
+    {
+      "reason": "listed in sitemap",
+      "score": 0.9,
+      "source": "sitemap",
+      "url": "https://example.com/docs"
+    }
+  ]
+}

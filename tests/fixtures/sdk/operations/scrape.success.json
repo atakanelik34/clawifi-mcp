@@ -1,0 +1,27 @@
+{
+  "artifacts": [],
+  "cache_hit": false,
+  "diagnostics": null,
+  "errors": [],
+  "final_url": "https://example.com/",
+  "format_results": {
+    "markdown": {
+      "credit_quote": 1,
+      "success": true,
+      "type": "markdown"
+    }
+  },
+  "formats": {
+    "markdown": "# Example Domain",
+    "metadata": {
+      "title": "Example Domain"
+    }
+  },
+  "metadata": {
+    "title": "Example Domain"
+  },
+  "mode_used": "http_fetch",
+  "source": "generic_web",
+  "success": true,
+  "url": "https://example.com/"
+}

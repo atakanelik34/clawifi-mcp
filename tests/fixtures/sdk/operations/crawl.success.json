@@ -1,0 +1,23 @@
+{
+  "discovered_count": 1,
+  "errors": [],
+  "max_depth_reached": 0,
+  "pages": [
+    {
+      "artifact_count": 0,
+      "artifact_ids": [],
+      "canonical_url": "https://example.com/",
+      "depth": 0,
+      "excerpt": "Example Domain",
+      "links": [
+        "https://example.com/docs"
+      ],
+      "operation_id": null,
+      "title": "Example Domain",
+      "url": "https://example.com/"
+    }
+  ],
+  "seed_url": "https://example.com/",
+  "success": true,
+  "visited_count": 1
+}

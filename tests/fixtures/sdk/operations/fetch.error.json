@@ -1,0 +1,11 @@
+{
+  "error": {
+    "code": "validation_error",
+    "details": {
+      "request_id": "req_sdk_fixture",
+      "retryable": false,
+      "suggested_action": "Fix the request payload before retrying."
+    },
+    "message": "fetch request is invalid"
+  }
+}

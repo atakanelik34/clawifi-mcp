@@ -1,0 +1,14 @@
+{
+  "aggregates": [
+    {
+      "events": 1,
+      "operation": "fetch",
+      "source": "generic_web",
+      "status": "success",
+      "units": 1
+    }
+  ],
+  "generated_at": "2026-01-01T12:00:00Z",
+  "total_events": 1,
+  "total_units": 1
+}

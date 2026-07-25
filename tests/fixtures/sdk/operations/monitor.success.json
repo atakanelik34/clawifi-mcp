@@ -1,0 +1,41 @@
+{
+  "monitors": [
+    {
+      "browser_profile": null,
+      "change_threshold": 0.05,
+      "consecutive_failures": 0,
+      "content_paths": [],
+      "created_at": "2026-01-01T12:00:00Z",
+      "diff_modes": [
+        "hash",
+        "text"
+      ],
+      "exclude_selectors": [],
+      "extraction_schema": null,
+      "formats": [
+        "markdown"
+      ],
+      "include_selectors": [],
+      "last_tick_at": null,
+      "mode": "auto",
+      "monitor_id": "mon_sdk_fixture",
+      "name": "Docs monitor",
+      "next_tick_at": "2026-01-01T12:00:00Z",
+      "schedule": {
+        "interval_seconds": 900,
+        "type": "interval"
+      },
+      "status": "active",
+      "tick_credit_quote": 1,
+      "timeout_seconds": 30,
+      "timezone": "UTC",
+      "updated_at": "2026-01-01T12:00:00Z",
+      "url": "https://example.com/docs",
+      "version": 1,
+      "wait_until": "networkidle",
+      "webhook_endpoint_ids": []
+    }
+  ],
+  "next_cursor": null,
+  "total": 1
+}

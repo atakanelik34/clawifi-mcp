@@ -1,0 +1,22 @@
+{
+  "browser_fallback_allowed": false,
+  "errors": [],
+  "paid_providers_used": [],
+  "provider": "ddg_html",
+  "providers_tried": [
+    "ddg_html"
+  ],
+  "query": "agent memory",
+  "result_count": 1,
+  "results": [
+    {
+      "data": {},
+      "provider": "ddg_html",
+      "rank": 1,
+      "snippet": "Example public search result.",
+      "title": "Example result",
+      "url": "https://example.com/result"
+    }
+  ],
+  "success": true
+}

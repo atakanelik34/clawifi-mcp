@@ -1,0 +1,11 @@
+{
+  "credit_renews_at": "2026-01-01T12:00:00Z",
+  "display_name": "SDK User",
+  "generated_at": "2026-01-01T12:00:00Z",
+  "monthly_credit_limit": 1000,
+  "monthly_credit_remaining": 975,
+  "monthly_credit_used": 25,
+  "plan": "Free",
+  "source": "local",
+  "username": "sdk-user"
+}

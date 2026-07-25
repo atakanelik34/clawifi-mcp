@@ -1,0 +1,32 @@
+{
+  "confidence": 0.95,
+  "data": {
+    "title": "Example Product"
+  },
+  "diagnostics": null,
+  "errors": [],
+  "evidence": {
+    "title": [
+      {
+        "confidence": 0.95,
+        "snippet": "<h1>Example Product</h1>",
+        "source": "selector:h1",
+        "value": "Example Product"
+      }
+    ]
+  },
+  "fetch": {},
+  "mode_used": "http_fetch",
+  "preset": "product",
+  "source": "generic_web",
+  "success": true,
+  "url": "https://example.com/product",
+  "validation": {
+    "fields": {
+      "title": {
+        "present": true
+      }
+    },
+    "valid": true
+  }
+}

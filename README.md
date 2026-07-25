@@ -1,5 +1,7 @@
 # clawifi
 
+<!-- mcp-name: io.github.atakanelik34/clawifi-mcp -->
+
 Official Python SDK, CLI, and MCP server for [Clawifi](https://clawifi.qzz.io), the agent-native internet gateway.
 
 This package is a thin client over the hosted Clawifi API. It does not include the Clawifi server, browser runtime, or Playwright — those run on Clawifi's infrastructure.

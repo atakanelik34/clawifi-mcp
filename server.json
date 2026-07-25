@@ -1,0 +1,44 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.atakanelik34/clawifi-mcp",
+  "title": "Clawifi",
+  "description": "Agent-native internet gateway: typed search, fetch, scrape, crawl, extract, and monitor tools over the hosted Clawifi API.",
+  "version": "0.1.0",
+  "websiteUrl": "https://clawifi.qzz.io",
+  "repository": {
+    "source": "github",
+    "url": "https://github.com/atakanelik34/clawifi-mcp"
+  },
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "clawifi",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "runtimeHint": "python",
+      "runtimeArguments": [
+        {
+          "type": "positional",
+          "value": "-m",
+          "valueHint": "module-flag"
+        },
+        {
+          "type": "positional",
+          "value": "clawifi.mcp_server",
+          "valueHint": "module"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "CLAWIFI_API_KEY",
+          "description": "Clawifi API key (clawifi_live_...). Create one at https://clawifi.qzz.io/signup.",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

@@ -3,7 +3,7 @@
   "name": "io.github.atakanelik34/clawifi-mcp",
   "title": "Clawifi",
   "description": "Agent-native internet gateway: typed search, fetch, scrape, crawl, and extract via the Clawifi API.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "websiteUrl": "https://clawifi.qzz.io",
   "repository": {
     "source": "github",
@@ -13,7 +13,7 @@
     {
       "registryType": "pypi",
       "identifier": "clawifi",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "transport": {
         "type": "stdio"
       },

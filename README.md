@@ -10,7 +10,7 @@
 
 Official Python SDK, CLI, and MCP server for [Clawifi](https://clawifi.qzz.io), the agent-native internet gateway: one typed API and MCP surface for fetching, scraping, searching, and crawling the web on behalf of an agent, with Cloudflare-challenge handling and realistic browser fingerprinting behind it.
 
-This package is a thin client over the hosted Clawifi API. It does not include the Clawifi server, browser runtime, or Playwright — those run on Clawifi's infrastructure. Live capability evidence and uptime: [clawifi.qzz.io/benchmarks](https://clawifi.qzz.io/benchmarks) · [clawifi.qzz.io/trust](https://clawifi.qzz.io/trust) · [clawifi.qzz.io/status](https://clawifi.qzz.io/status).
+This package is a thin client over the hosted Clawifi API (hosted API version 1.2.0 at time of release). It does not include the Clawifi server, browser runtime, or Playwright — those run on Clawifi's infrastructure. Live capability evidence and uptime: [clawifi.qzz.io/benchmarks](https://clawifi.qzz.io/benchmarks) · [clawifi.qzz.io/trust](https://clawifi.qzz.io/trust) · [clawifi.qzz.io/status](https://clawifi.qzz.io/status).
 
 ## Install
 

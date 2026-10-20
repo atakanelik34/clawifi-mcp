@@ -94,3 +94,36 @@ async def test_async_context_manager_closes_client():
 
     assert payload["success"] is True
     assert client.is_closed
+
+
+def test_mcp_fetch_and_scrape_forward_the_question(monkeypatch):
+    from clawifi import mcp_server
+
+    calls = []
+
+    class _Fake:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def fetch(self, url, **kwargs):
+            calls.append(("fetch", url, kwargs))
+            return {}
+
+        def scrape(self, url, **kwargs):
+            calls.append(("scrape", url, kwargs))
+            return {}
+
+    monkeypatch.setattr(mcp_server, "_client", _Fake)
+    mcp_server.fetch("https://example.com", query="when", top_k=2)
+    mcp_server.fetch("https://example.com")
+    mcp_server.scrape("https://example.com", query="when", formats=["markdown"])
+    mcp_server.scrape("https://example.com", query="  ")
+    assert calls == [
+        ("fetch", "https://example.com", {"timeout_seconds": 15, "query": "when", "top_k": 2}),
+        ("fetch", "https://example.com", {"timeout_seconds": 15}),
+        ("scrape", "https://example.com", {"formats": ["markdown"], "query": "when", "top_k": 5}),
+        ("scrape", "https://example.com", {}),
+    ]

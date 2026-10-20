@@ -32,7 +32,7 @@
       "updated_at": "2026-01-01T12:00:00Z",
       "url": "https://example.com/docs",
       "version": 1,
-      "wait_until": "networkidle",
+      "wait_until": "domcontentloaded",
       "webhook_endpoint_ids": []
     }
   ],

@@ -14,18 +14,24 @@ def _client() -> Clawifi:
     return Clawifi()
 
 
-@mcp.tool()
-def fetch(url: str, timeout_seconds: int = 15) -> dict[str, Any]:
-    """Fetch a single URL and return its extracted content."""
-    with _client() as client:
-        return client.fetch(url, timeout_seconds=timeout_seconds)
+def _question(query: str | None, top_k: int) -> dict[str, Any]:
+    return {"query": query, "top_k": top_k} if query and query.strip() else {}
 
 
 @mcp.tool()
-def scrape(url: str, **kwargs: Any) -> dict[str, Any]:
-    """Scrape a URL with source-aware routing and return structured content."""
+def fetch(url: str, query: str | None = None, top_k: int = 5, timeout_seconds: int = 15) -> dict[str, Any]:
+    """Fetch a single URL and return its extracted content. With query, the text is only the top_k passages
+    that answer it, and data.query_selection gives their place in the page."""
     with _client() as client:
-        return client.scrape(url, **kwargs)
+        return client.fetch(url, timeout_seconds=timeout_seconds, **_question(query, top_k))
+
+
+@mcp.tool()
+def scrape(url: str, query: str | None = None, top_k: int = 5, **kwargs: Any) -> dict[str, Any]:
+    """Scrape a URL with source-aware routing and return structured content. With query, markdown and text are
+    only the top_k passages that answer it."""
+    with _client() as client:
+        return client.scrape(url, **kwargs, **_question(query, top_k))
 
 
 @mcp.tool()

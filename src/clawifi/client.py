@@ -58,7 +58,7 @@ class _BaseClient:
         )
 
     def _headers(self) -> dict[str, str]:
-        headers = {"Accept": "application/json", "User-Agent": "clawifi/0.1.2"}
+        headers = {"Accept": "application/json", "User-Agent": "clawifi/0.2.0"}
         if self.config.api_key:
             headers["Authorization"] = f"Bearer {self.config.api_key}"
         return headers

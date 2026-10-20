@@ -10,7 +10,7 @@
 
 Official Python SDK, CLI, and MCP server for [Clawifi](https://clawifi.qzz.io), the agent-native internet gateway: one typed API and MCP surface for fetching, scraping, searching, and crawling the web on behalf of an agent, with Cloudflare-challenge handling and realistic browser fingerprinting behind it.
 
-This package is a thin client over the hosted Clawifi API (hosted API version 1.2.0 at time of release). It does not include the Clawifi server, browser runtime, or Playwright — those run on Clawifi's infrastructure. Live capability evidence and uptime: [clawifi.qzz.io/benchmarks](https://clawifi.qzz.io/benchmarks) · [clawifi.qzz.io/trust](https://clawifi.qzz.io/trust) · [clawifi.qzz.io/status](https://clawifi.qzz.io/status).
+This package is a thin client over the hosted Clawifi API (hosted API version 1.4.0 at time of release). It does not include the Clawifi server, browser runtime, or Playwright — those run on Clawifi's infrastructure. Live capability evidence and uptime: [clawifi.qzz.io/benchmarks](https://clawifi.qzz.io/benchmarks) · [clawifi.qzz.io/trust](https://clawifi.qzz.io/trust) · [clawifi.qzz.io/status](https://clawifi.qzz.io/status).
 
 ## Install
 
@@ -66,8 +66,8 @@ An async client is also available as `clawifi.AsyncClawifi`.
 
 | Tool | What it does |
 | --- | --- |
-| `fetch` | Fetch a single URL and return its extracted content. |
-| `scrape` | Scrape a URL with source-aware routing and return structured content. |
+| `fetch` | Fetch a single URL and return its extracted content. With `query`, only the passages that answer it. |
+| `scrape` | Scrape a URL with source-aware routing and return structured content. With `query`, only the passages that answer it. |
 | `search_free` | Run a free-tier web search and return results. |
 | `extract` | Extract structured data from a URL. |
 | `map_site` | Map a site's discoverable URLs starting from a seed URL. |

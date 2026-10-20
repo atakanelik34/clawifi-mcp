@@ -21,6 +21,7 @@
     "title": "Example Domain"
   },
   "mode_used": "http_fetch",
+  "query_selection": null,
   "source": "generic_web",
   "success": true,
   "url": "https://example.com/"

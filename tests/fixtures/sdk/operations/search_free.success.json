@@ -1,6 +1,7 @@
 {
   "browser_fallback_allowed": false,
   "errors": [],
+  "filters_applied": {},
   "paid_providers_used": [],
   "provider": "ddg_html",
   "providers_tried": [

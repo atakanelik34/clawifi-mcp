@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import httpx
 import pytest
 
-from clawifi import AsyncClawifi, Clawifi, ClawifiAPIError, ClawifiConfig, ClawifiDryRunUnsupportedError
+from clawifi import AsyncClawifi, Clawifi, ClawifiAPIError, ClawifiConfig, ClawifiDryRunIgnoredError, ClawifiDryRunUnsupportedError, ClawifiError
 from clawifi.errors import parse_retry_after
 from clawifi.testing import fixture_transport, load_fixture_manifest
 
@@ -146,7 +146,7 @@ def _api(manifest_version: str | None, calls: list[tuple[str, str, dict]], *, bo
     return httpx.MockTransport(handler)
 
 
-ESTIMATE_BODY = {"dry_run": True, "estimate": {"minimum": 1, "maximum": 3, "raises": ["browser_render"]}, "balance": 975, "would_402": False}
+ESTIMATE_BODY = {"dry_run": True, "route": "POST /fetch", "estimate": {"minimum": 1, "maximum": 3, "raises": ["browser_render"]}, "balance": 975, "would_402": False, "would_429": False, "binding_limit": None, "charged": 0}
 
 
 def test_estimate_sends_dry_run_once_the_api_supports_it(monkeypatch):
@@ -396,3 +396,67 @@ def test_version_ordering_is_numeric_not_lexical():
     assert _version_tuple("1.10.0") > _version_tuple("1.9.0")
     assert _version_tuple("1.7.0rc1") < _version_tuple("1.7.0") == _version_tuple("1.7.0.post1")
     assert _version_tuple("") == (0, 0, 0, 0)
+
+
+@pytest.mark.parametrize("raw,expected", [("clawifi_live_SECRET123\n", "clawifi_live_SECRET123"), ("  clawifi_live_SECRET123 ", "clawifi_live_SECRET123"), ("\t\n", None), ("", None)])
+def test_api_key_is_stripped(monkeypatch, raw, expected):
+    assert Clawifi(api_key=raw, transport=_api("1.7.0", [])).config.api_key == expected
+    monkeypatch.setenv("CLAWIFI_API_KEY", raw)
+    assert ClawifiConfig.from_env().api_key == expected
+    assert Clawifi(transport=_api("1.7.0", [])).config.api_key == expected
+
+
+@pytest.mark.parametrize("raw", ["clawifi_live_SECRETé", "clawifi_live_SECRET\r\nX: y", "clawifi_live_SEC RET", "clawifi_live_SECRET\x00"])
+def test_a_key_with_inner_whitespace_or_control_characters_is_refused_without_echoing_it(monkeypatch, raw):
+    with pytest.raises(ValueError) as raised:
+        Clawifi(api_key=raw, transport=_api("1.7.0", []))
+    assert "SECRET" not in str(raised.value)
+    if "\x00" in raw:
+        return  # the environment cannot hold a NUL
+    monkeypatch.setenv("CLAWIFI_API_KEY", raw)
+    with pytest.raises(ValueError) as raised:
+        ClawifiConfig.from_env()
+    assert "SECRET" not in str(raised.value)
+
+
+def test_transport_and_api_error_text_is_redacted():
+    def broken(request: httpx.Request) -> httpx.Response:
+        raise httpx.LocalProtocolError(f"Illegal header value b'{request.headers['authorization']}'")
+
+    client = Clawifi(api_key="clawifi_live_SECRET123", transport=httpx.MockTransport(broken), max_retries=0)
+    with pytest.raises(ClawifiError) as raised:
+        client.fetch("https://example.com")
+    assert "SECRET123" not in str(raised.value) and "Bearer ***" in str(raised.value)
+
+    echo = {"error": {"code": "unauthorized", "message": "key clawifi_test_SECRET456 rejected", "details": {}}}
+    client = Clawifi(api_key="k", transport=httpx.MockTransport(lambda request: httpx.Response(401, json=echo)), max_retries=0)
+    with pytest.raises(ClawifiAPIError) as raised:
+        client.account()
+    assert str(raised.value) == "key clawifi_test_*** rejected"
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"success": True, "data": {"text": "the page"}},  # an old node ran the call
+        {"dry_run": True, "charged": 3},
+        {"dry_run": True},
+        {"dry_run": "true", "charged": 0},
+        {"dry_run": True, "charged": False},
+    ],
+)
+def test_a_dry_run_the_api_did_not_honour_is_reported_as_possibly_billed(body):
+    client = Clawifi(api_key="test-token", transport=_api("1.7.0", [], body=body))
+    with pytest.raises(ClawifiDryRunIgnoredError, match="may have been billed") as raised:
+        client.estimate("fetch", url="https://example.com")
+    assert raised.value.response == body
+    with pytest.raises(ClawifiDryRunIgnoredError):
+        client.crawl("https://example.com", dry_run=True)
+
+
+@pytest.mark.asyncio
+async def test_async_dry_run_is_verified_too():
+    async with AsyncClawifi(api_key="test-token", transport=_api("1.7.0", [], body={"success": True})) as client:
+        with pytest.raises(ClawifiDryRunIgnoredError):
+            await client.scrape("https://example.com", dry_run=True)
+        assert await client.scrape("https://example.com") == {"success": True}

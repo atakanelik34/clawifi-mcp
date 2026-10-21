@@ -1,12 +1,24 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import Any
 
+_BEARER = re.compile(r"(?i)\bBearer\s+\S+")
+_CLAWIFI_KEY = re.compile(r"clawifi_(live|test)_\w+")
+
+
+def redact(text: object) -> str:
+    """The text with any bearer token and any clawifi_live_/clawifi_test_ key replaced by ***."""
+    return _CLAWIFI_KEY.sub(r"clawifi_\1_***", _BEARER.sub("Bearer ***", str(text)))
+
 
 class ClawifiError(Exception):
-    """Base SDK error."""
+    """Base SDK error. Its message is redacted: a bearer token or a Clawifi key in it becomes ***."""
+
+    def __init__(self, message: object = "", *args: object) -> None:
+        super().__init__(redact(message), *args)
 
 
 class ClawifiTransportError(ClawifiError):
@@ -15,6 +27,15 @@ class ClawifiTransportError(ClawifiError):
 
 class ClawifiDryRunUnsupportedError(ClawifiError):
     """Raised before sending dry_run to a Clawifi API that would ignore it and run (and bill) the call."""
+
+
+class ClawifiDryRunIgnoredError(ClawifiError):
+    """Raised when a dry run came back without dry_run: true and charged: 0, so the API ran the call (an older node
+    during a rolling deploy, say) and may have billed it. response holds what the API returned."""
+
+    def __init__(self, message: str, *, response: dict[str, Any] | None = None) -> None:
+        super().__init__(message)
+        self.response = response or {}
 
 
 class ClawifiAPIError(ClawifiError):

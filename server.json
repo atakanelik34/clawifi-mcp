@@ -55,7 +55,7 @@
           "variables": {
             "clawifi_api_key": {
               "description": "Clawifi API key (clawifi_live_...). Create one at https://clawifi.qzz.io/signup.",
-              "isRequired": true,
+              "isRequired": false,
               "isSecret": true,
               "format": "string"
             }

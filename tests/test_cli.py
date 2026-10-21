@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -153,7 +154,38 @@ def test_backup_name_is_timestamped(home):
     path = _desktop_config(home)
     client = next(c for c in detect_clients(home=home, environ={}, platform="darwin", which=_which({})) if c.key == "claude-desktop")
     write_config(client, remote=False, api_key=SECRET, which=_which({}), input_fn=lambda p: "y", is_tty=True, out=io.StringIO(), now=lambda: datetime(2026, 10, 21, 9, 5, 7))
-    assert (path.parent / "claude_desktop_config.json.bak-20261021-090507").exists()
+    assert (path.parent / "claude_desktop_config.json.bak-20261021-090507-000000").exists()
+
+
+def test_written_config_and_backups_are_private_and_never_overwrite_each_other(home):
+    import stat
+
+    path = _desktop_config(home)
+    os.chmod(path, 0o644)
+    client = next(c for c in detect_clients(home=home, environ={}, platform="darwin", which=_which({})) if c.key == "claude-desktop")
+    same_instant = lambda: datetime(2026, 10, 22, 9, 5, 7, 123456)  # noqa: E731
+    for _ in range(3):
+        assert write_config(client, remote=False, api_key=SECRET, which=_which({}), input_fn=lambda p: "y", is_tty=True, out=io.StringIO(), now=same_instant) == 0
+        assert stat.S_IMODE(path.stat().st_mode) == 0o600
+
+    backups = sorted(p.name for p in path.parent.glob("claude_desktop_config.json.bak-*"))
+    assert backups == [
+        "claude_desktop_config.json.bak-20261022-090507-123456",
+        "claude_desktop_config.json.bak-20261022-090507-123456-1",
+        "claude_desktop_config.json.bak-20261022-090507-123456-2",
+    ]
+    for name in backups:
+        assert stat.S_IMODE((path.parent / name).stat().st_mode) == 0o600
+    assert not list(path.parent.glob(".*.tmp"))
+
+
+def test_a_new_cursor_config_is_private_too(home):
+    import stat
+
+    (home / ".cursor").mkdir()
+    code, _ = _init(home, write="cursor", is_tty=True, input_fn=lambda prompt: "y")
+    assert code == 0
+    assert stat.S_IMODE((home / ".cursor" / "mcp.json").stat().st_mode) == 0o600
 
 
 def test_mask_key():

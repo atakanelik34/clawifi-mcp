@@ -73,6 +73,8 @@ clawifi-mcp
 
 reading `CLAWIFI_API_KEY` from the environment. `clawifi mcp config` prints a minimal config for it. Every tool carries a title and the MCP hints `readOnlyHint`, `destructiveHint`, `idempotentHint` and `openWorldHint`; none is destructive.
 
+The billable tools (`fetch`, `scrape`, `extract`, `map_site`, `crawl`, `search_free`) take their common options as parameters and any other API field in `options`, which is merged into the request body. They refuse `dry_run`: use the `estimate` tool to price a call. Arguments a tool does not declare are refused rather than ignored.
+
 ## Remote MCP
 
 Clawifi also runs a hosted MCP server, so nothing needs installing:

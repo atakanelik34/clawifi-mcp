@@ -9,7 +9,7 @@ from typing import Any, AsyncIterator, Iterator
 
 import httpx
 
-from clawifi.errors import ClawifiAPIError, ClawifiDryRunUnsupportedError, ClawifiTransportError, parse_retry_after
+from clawifi.errors import ClawifiAPIError, ClawifiDryRunIgnoredError, ClawifiDryRunUnsupportedError, ClawifiTransportError, parse_retry_after
 
 DEFAULT_API_BASE = "https://api.clawifi.qzz.io"
 RETRYABLE_STATUS_CODES = {408, 425, 429, 500, 502, 503, 504}
@@ -43,7 +43,7 @@ class ClawifiConfig:
         timeout = float(os.getenv("CLAWIFI_TIMEOUT", "30"))
         max_retries = int(os.getenv("CLAWIFI_MAX_RETRIES", "2"))
         return cls(
-            api_key=os.getenv("CLAWIFI_API_KEY"),
+            api_key=_clean_key(os.getenv("CLAWIFI_API_KEY")),
             api_base=os.getenv("CLAWIFI_API_BASE", DEFAULT_API_BASE).rstrip("/"),
             timeout=timeout,
             max_retries=max_retries,
@@ -66,7 +66,7 @@ class _BaseClient:
     ) -> None:
         env_config = config or ClawifiConfig.from_env()
         self.config = ClawifiConfig(
-            api_key=api_key if api_key is not None else env_config.api_key,
+            api_key=_clean_key(api_key if api_key is not None else env_config.api_key),
             api_base=(api_base or env_config.api_base).rstrip("/"),
             timeout=timeout if timeout is not None else env_config.timeout,
             max_retries=max_retries if max_retries is not None else env_config.max_retries,
@@ -153,10 +153,11 @@ class Clawifi(_BaseClient):
     def _billable(self, operation: str, first: Any, kwargs: dict[str, Any], dry_run: bool) -> dict[str, Any]:
         path, field = ESTIMATE_ROUTES[operation]
         body = {field: first, **kwargs}
-        if _dry_run_flag(dry_run):
-            self._require_dry_run()
-            body["dry_run"] = True
-        return self.post(path, json=body, idempotent=True)
+        if not _dry_run_flag(dry_run):
+            return self.post(path, json=body, idempotent=True)
+        self._require_dry_run()
+        body["dry_run"] = True
+        return _checked_dry_run(path, self.post(path, json=body, idempotent=True))
 
     def _require_dry_run(self) -> None:
         if self._dry_run_checked:
@@ -179,7 +180,7 @@ class Clawifi(_BaseClient):
         path, _ = ESTIMATE_ROUTES[operation]
         self._require_dry_run()
         body = {key: value for key, value in args.items() if key != "dry_run"}
-        return self.post(path, json={**body, "dry_run": True}, idempotent=True)
+        return _checked_dry_run(path, self.post(path, json={**body, "dry_run": True}, idempotent=True))
 
     def fetch(self, url: str, *, dry_run: bool = False, **kwargs: Any) -> dict[str, Any]:
         return self._billable("fetch", url, kwargs, dry_run)
@@ -301,10 +302,11 @@ class AsyncClawifi(_BaseClient):
     async def _billable(self, operation: str, first: Any, kwargs: dict[str, Any], dry_run: bool) -> dict[str, Any]:
         path, field = ESTIMATE_ROUTES[operation]
         body = {field: first, **kwargs}
-        if _dry_run_flag(dry_run):
-            await self._require_dry_run()
-            body["dry_run"] = True
-        return await self.post(path, json=body, idempotent=True)
+        if not _dry_run_flag(dry_run):
+            return await self.post(path, json=body, idempotent=True)
+        await self._require_dry_run()
+        body["dry_run"] = True
+        return _checked_dry_run(path, await self.post(path, json=body, idempotent=True))
 
     async def _require_dry_run(self) -> None:
         if self._dry_run_checked:
@@ -327,7 +329,7 @@ class AsyncClawifi(_BaseClient):
         path, _ = ESTIMATE_ROUTES[operation]
         await self._require_dry_run()
         body = {key: value for key, value in args.items() if key != "dry_run"}
-        return await self.post(path, json={**body, "dry_run": True}, idempotent=True)
+        return _checked_dry_run(path, await self.post(path, json={**body, "dry_run": True}, idempotent=True))
 
     async def fetch(self, url: str, *, dry_run: bool = False, **kwargs: Any) -> dict[str, Any]:
         return await self._billable("fetch", url, kwargs, dry_run)
@@ -413,6 +415,26 @@ def _version_tuple(version: str) -> tuple[int, int, int, int]:
     return (int(major), int(minor or 0), int(patch or 0), release)
 
 
+_KEY_CHARS = re.compile(r"[\x21-\x7e]+")
+
+
+def _clean_key(api_key: str | None) -> str | None:
+    """The key without surrounding whitespace (a pasted newline), None when empty. A key with inner whitespace, a
+    control character or a non-ASCII character is refused: it cannot be sent as a header, and the HTTP error it
+    would cause quotes the header back. The message never contains the key."""
+    if api_key is None:
+        return None
+    key = str(api_key).strip()
+    if not key:
+        return None
+    if not _KEY_CHARS.fullmatch(key):
+        raise ValueError(
+            "Clawifi API key contains whitespace, control or non-ASCII characters; check CLAWIFI_API_KEY "
+            "(copy the key again without line breaks or spaces)"
+        )
+    return key
+
+
 def _dry_run_flag(dry_run: Any) -> bool:
     """True only for the boolean True. False and None mean no dry_run key in the body; any other value is refused,
     because the API answers a non-boolean dry_run with 422 and treating "yes" as false would run and bill the call."""
@@ -421,6 +443,17 @@ def _dry_run_flag(dry_run: Any) -> bool:
     if dry_run is False or dry_run is None:
         return False
     raise TypeError(f"dry_run must be True or False, not {dry_run!r}")
+
+
+def _checked_dry_run(path: str, result: dict[str, Any]) -> dict[str, Any]:
+    """The dry-run answer, once it says dry_run: true and charged: 0. Anything else means the API ran the call."""
+    if result.get("dry_run") is True and result.get("charged") == 0 and not isinstance(result.get("charged"), bool):
+        return result
+    raise ClawifiDryRunIgnoredError(
+        f"POST {path} was sent as a dry run but the API ran the call instead (no dry_run: true and charged: 0 in "
+        "the response); it may have been billed. Check credits and history before retrying.",
+        response=result,
+    )
 
 
 def _refuse_dry_run(operation: str, body: dict[str, Any]) -> None:

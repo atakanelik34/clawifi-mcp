@@ -18,6 +18,7 @@ import json
 import os
 import shutil
 import sys
+import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -251,18 +252,51 @@ def write_config(
         return 1
 
     if path.exists():
-        backup = path.with_name(f"{path.name}.bak-{now().strftime('%Y%m%d-%H%M%S')}")
-        shutil.copy2(path, backup)
+        backup = _write_backup(path, now())
         print(f"Backed up {path} to {backup}", file=out)
     merged = dict(existing)
     merged["mcpServers"] = {**(servers or {}), SERVER_NAME: entry}
     path.parent.mkdir(parents=True, exist_ok=True)
-    new_file = not path.exists()
-    path.write_text(json.dumps(merged, indent=2) + "\n", encoding="utf-8")
-    if new_file and client.key == "claude-desktop":
-        os.chmod(path, 0o600)
+    _write_private(path, json.dumps(merged, indent=2) + "\n")
     print(f"Wrote {path}. Restart {client.name} to load Clawifi.", file=out)
     return 0
+
+
+def _write_backup(path: Path, when: datetime) -> Path:
+    """Copy path to <name>.bak-<YYYYmmdd-HHMMSS-ffffff>[-N], created 0600 and never over an earlier backup."""
+    data = path.read_bytes()
+    stem = f"{path.name}.bak-{when.strftime('%Y%m%d-%H%M%S-%f')}"
+    for attempt in range(1000):
+        backup = path.with_name(stem if attempt == 0 else f"{stem}-{attempt}")
+        try:
+            fd = os.open(backup, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            continue
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(data)
+        os.chmod(backup, 0o600)
+        return backup
+    raise FileExistsError(f"could not pick a free backup name next to {path}")
+
+
+def _write_private(path: Path, text: str) -> None:
+    """Write text to path atomically: a 0600 temp file in the same directory, then os.replace, then chmod 0600.
+    The config can hold the API key, so it is never readable by other users, even for a moment."""
+    fd, temp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(temp, 0o600)
+        os.replace(temp, path)
+    except BaseException:
+        try:
+            os.unlink(temp)
+        except FileNotFoundError:
+            pass
+        raise
+    os.chmod(path, 0o600)
 
 
 def run_init(

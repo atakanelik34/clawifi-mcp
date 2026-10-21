@@ -3,7 +3,7 @@
   "name": "io.github.atakanelik34/clawifi-mcp",
   "title": "Clawifi",
   "description": "Agent-native internet gateway: typed search, fetch, scrape, crawl, and extract via the Clawifi API.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "websiteUrl": "https://clawifi.qzz.io",
   "repository": {
     "source": "github",
@@ -13,7 +13,7 @@
     {
       "registryType": "pypi",
       "identifier": "clawifi",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "transport": {
         "type": "stdio"
       },
@@ -37,6 +37,29 @@
           "isRequired": true,
           "isSecret": true,
           "format": "string"
+        }
+      ]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://api.clawifi.qzz.io/mcp",
+      "headers": [
+        {
+          "name": "Authorization",
+          "description": "Bearer token with your Clawifi API key. Optional: without it only search_free, fetch_url, scrape_url and map_site work, at 12/min and 50/day per address.",
+          "value": "Bearer {clawifi_api_key}",
+          "isRequired": false,
+          "isSecret": true,
+          "variables": {
+            "clawifi_api_key": {
+              "description": "Clawifi API key (clawifi_live_...). Create one at https://clawifi.qzz.io/signup.",
+              "isRequired": true,
+              "isSecret": true,
+              "format": "string"
+            }
+          }
         }
       ]
     }

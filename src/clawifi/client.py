@@ -2,18 +2,31 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import time
 from dataclasses import dataclass
 from typing import Any, AsyncIterator, Iterator
 
 import httpx
 
-from clawifi.errors import ClawifiAPIError, ClawifiTransportError
+from clawifi.errors import ClawifiAPIError, ClawifiDryRunUnsupportedError, ClawifiTransportError, parse_retry_after
 
 DEFAULT_API_BASE = "https://api.clawifi.qzz.io"
 RETRYABLE_STATUS_CODES = {408, 425, 429, 500, 502, 503, 504}
 TERMINAL_JOB_STATUSES = {"succeeded", "failed", "cancelled"}
 TERMINAL_CRAWL_STATUSES = {"succeeded", "partial", "failed", "stopped", "interrupted"}
+MAX_RETRY_AFTER_SECONDS = 10.0
+DRY_RUN_MIN_API_VERSION = (1, 7, 0)
+# Billable operations that accept dry_run, and the field their first argument fills.
+ESTIMATE_ROUTES = {
+    "fetch": ("/fetch", "url"),
+    "scrape": ("/scrape", "url"),
+    "extract": ("/extract", "url"),
+    "map": ("/map", "url"),
+    "crawl": ("/crawl", "seed_url"),
+    "search_free": ("/search/free", "query"),
+    "search_content": ("/search/content", "query"),
+}
 
 
 @dataclass(frozen=True)
@@ -56,9 +69,10 @@ class _BaseClient:
             timeout=timeout if timeout is not None else env_config.timeout,
             max_retries=max_retries if max_retries is not None else env_config.max_retries,
         )
+        self._dry_run_checked = False
 
     def _headers(self) -> dict[str, str]:
-        headers = {"Accept": "application/json", "User-Agent": "clawifi/0.2.0"}
+        headers = {"Accept": "application/json", "User-Agent": "clawifi/0.3.0"}
         if self.config.api_key:
             headers["Authorization"] = f"Bearer {self.config.api_key}"
         return headers
@@ -67,8 +81,20 @@ class _BaseClient:
         return f"{self.config.api_base}/{path.lstrip('/')}"
 
     @staticmethod
-    def _should_retry(method: str, idempotent: bool, status_code: int) -> bool:
+    def _should_retry(method: str, idempotent: bool, status_code: int, retry_after: float | None = None) -> bool:
+        if retry_after is not None and retry_after > MAX_RETRY_AFTER_SECONDS:
+            return False
         return (method.upper() in {"GET", "HEAD"} or idempotent) and status_code in RETRYABLE_STATUS_CODES
+
+    def _check_dry_run_manifest(self, manifest: dict[str, Any] | None) -> None:
+        version = str((manifest or {}).get("version") or "")
+        if _version_tuple(version) < DRY_RUN_MIN_API_VERSION:
+            shown = version or "unknown"
+            raise ClawifiDryRunUnsupportedError(
+                f"dry_run needs Clawifi API 1.7.0 or later; {self.config.api_base} reports {shown}. "
+                "An older API ignores dry_run and runs (and bills) the call, so nothing was sent."
+            )
+        self._dry_run_checked = True
 
 
 class Clawifi(_BaseClient):
@@ -108,9 +134,12 @@ class Clawifi(_BaseClient):
             if response.status_code < 400:
                 return _decode_response(response)
             payload = _decode_response(response)
-            if attempt < attempts - 1 and self._should_retry(method, idempotent, response.status_code):
+            retry_after = parse_retry_after(response.headers.get("Retry-After"))
+            if attempt < attempts - 1 and self._should_retry(method, idempotent, response.status_code, retry_after):
+                if retry_after:
+                    time.sleep(retry_after)
                 continue
-            raise ClawifiAPIError.from_response(response.status_code, payload, request_id=response.headers.get("X-Clawifi-Request-ID"))
+            raise ClawifiAPIError.from_response(response.status_code, payload, request_id=response.headers.get("X-Clawifi-Request-ID"), retry_after=retry_after)
         raise ClawifiTransportError("request retry loop exited unexpectedly")
 
     def get(self, path: str, *, params: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -119,26 +148,62 @@ class Clawifi(_BaseClient):
     def post(self, path: str, *, json: dict[str, Any] | None = None, idempotent: bool = False) -> dict[str, Any]:
         return self.request("POST", path, json=json, idempotent=idempotent)
 
-    def fetch(self, url: str, **kwargs: Any) -> dict[str, Any]:
-        return self.post("/fetch", json={"url": url, **kwargs}, idempotent=True)
+    def _billable(self, operation: str, first: Any, kwargs: dict[str, Any], dry_run: bool) -> dict[str, Any]:
+        path, field = ESTIMATE_ROUTES[operation]
+        body = {field: first, **kwargs}
+        if dry_run:
+            self._require_dry_run()
+            body["dry_run"] = True
+        return self.post(path, json=body, idempotent=True)
 
-    def scrape(self, url: str, **kwargs: Any) -> dict[str, Any]:
-        return self.post("/scrape", json={"url": url, **kwargs}, idempotent=True)
+    def _require_dry_run(self) -> None:
+        if self._dry_run_checked:
+            return
+        try:
+            manifest = self.get("/product/manifest")
+        except (ClawifiAPIError, ClawifiTransportError):
+            manifest = None
+        self._check_dry_run_manifest(manifest)
+
+    def estimate(self, operation: str, **args: Any) -> dict[str, Any]:
+        """Price a billable call without running it (Clawifi API 1.7.0+).
+
+        operation is one of fetch, scrape, extract, map, crawl, search_free or search_content; args are that
+        operation's fields (url=, seed_url= or query=, plus options). Returns estimate{minimum,maximum,raises},
+        balance and would_402. Raises ClawifiDryRunUnsupportedError, without sending the call, on an older API.
+        """
+        if operation not in ESTIMATE_ROUTES:
+            raise ValueError(f"unknown operation {operation!r}; expected one of {', '.join(sorted(ESTIMATE_ROUTES))}")
+        path, _ = ESTIMATE_ROUTES[operation]
+        self._require_dry_run()
+        return self.post(path, json={**args, "dry_run": True}, idempotent=True)
+
+    def fetch(self, url: str, *, dry_run: bool = False, **kwargs: Any) -> dict[str, Any]:
+        return self._billable("fetch", url, kwargs, dry_run)
+
+    def scrape(self, url: str, *, dry_run: bool = False, **kwargs: Any) -> dict[str, Any]:
+        return self._billable("scrape", url, kwargs, dry_run)
 
     def schema_assist(self, **kwargs: Any) -> dict[str, Any]:
         return self.post("/schema/assist", json=kwargs, idempotent=True)
 
-    def search_free(self, query: str, **kwargs: Any) -> dict[str, Any]:
-        return self.post("/search/free", json={"query": query, **kwargs}, idempotent=True)
+    def search_free(self, query: str, *, dry_run: bool = False, **kwargs: Any) -> dict[str, Any]:
+        return self._billable("search_free", query, kwargs, dry_run)
 
-    def extract(self, url: str, **kwargs: Any) -> dict[str, Any]:
-        return self.post("/extract", json={"url": url, **kwargs}, idempotent=True)
+    def search_content(self, query: str, *, full: bool | None = None, dry_run: bool = False, **kwargs: Any) -> dict[str, Any]:
+        """Search and read the top results. Compact by default; full=True returns the full output."""
+        if full is not None:
+            kwargs["full"] = full
+        return self._billable("search_content", query, kwargs, dry_run)
 
-    def map(self, url: str, **kwargs: Any) -> dict[str, Any]:
-        return self.post("/map", json={"url": url, **kwargs}, idempotent=True)
+    def extract(self, url: str, *, dry_run: bool = False, **kwargs: Any) -> dict[str, Any]:
+        return self._billable("extract", url, kwargs, dry_run)
 
-    def crawl(self, seed_url: str, **kwargs: Any) -> dict[str, Any]:
-        return self.post("/crawl", json={"seed_url": seed_url, **kwargs}, idempotent=True)
+    def map(self, url: str, *, dry_run: bool = False, **kwargs: Any) -> dict[str, Any]:
+        return self._billable("map", url, kwargs, dry_run)
+
+    def crawl(self, seed_url: str, *, dry_run: bool = False, **kwargs: Any) -> dict[str, Any]:
+        return self._billable("crawl", seed_url, kwargs, dry_run)
 
     def create_job(self, operation: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self.post("/jobs", json={"operation": operation, "payload": payload})
@@ -172,6 +237,10 @@ class Clawifi(_BaseClient):
 
     def credits(self) -> dict[str, Any]:
         return self.get("/usage")
+
+    def billing_plans(self) -> dict[str, Any]:
+        """Plans, credit packs and credit_costs (credits per operation). Needs no API key."""
+        return self.get("/billing/plans")
 
 
 class AsyncClawifi(_BaseClient):
@@ -211,9 +280,12 @@ class AsyncClawifi(_BaseClient):
             if response.status_code < 400:
                 return _decode_response(response)
             payload = _decode_response(response)
-            if attempt < attempts - 1 and self._should_retry(method, idempotent, response.status_code):
+            retry_after = parse_retry_after(response.headers.get("Retry-After"))
+            if attempt < attempts - 1 and self._should_retry(method, idempotent, response.status_code, retry_after):
+                if retry_after:
+                    await asyncio.sleep(retry_after)
                 continue
-            raise ClawifiAPIError.from_response(response.status_code, payload, request_id=response.headers.get("X-Clawifi-Request-ID"))
+            raise ClawifiAPIError.from_response(response.status_code, payload, request_id=response.headers.get("X-Clawifi-Request-ID"), retry_after=retry_after)
         raise ClawifiTransportError("request retry loop exited unexpectedly")
 
     async def get(self, path: str, *, params: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -222,26 +294,62 @@ class AsyncClawifi(_BaseClient):
     async def post(self, path: str, *, json: dict[str, Any] | None = None, idempotent: bool = False) -> dict[str, Any]:
         return await self.request("POST", path, json=json, idempotent=idempotent)
 
-    async def fetch(self, url: str, **kwargs: Any) -> dict[str, Any]:
-        return await self.post("/fetch", json={"url": url, **kwargs}, idempotent=True)
+    async def _billable(self, operation: str, first: Any, kwargs: dict[str, Any], dry_run: bool) -> dict[str, Any]:
+        path, field = ESTIMATE_ROUTES[operation]
+        body = {field: first, **kwargs}
+        if dry_run:
+            await self._require_dry_run()
+            body["dry_run"] = True
+        return await self.post(path, json=body, idempotent=True)
 
-    async def scrape(self, url: str, **kwargs: Any) -> dict[str, Any]:
-        return await self.post("/scrape", json={"url": url, **kwargs}, idempotent=True)
+    async def _require_dry_run(self) -> None:
+        if self._dry_run_checked:
+            return
+        try:
+            manifest = await self.get("/product/manifest")
+        except (ClawifiAPIError, ClawifiTransportError):
+            manifest = None
+        self._check_dry_run_manifest(manifest)
+
+    async def estimate(self, operation: str, **args: Any) -> dict[str, Any]:
+        """Price a billable call without running it (Clawifi API 1.7.0+).
+
+        operation is one of fetch, scrape, extract, map, crawl, search_free or search_content; args are that
+        operation's fields (url=, seed_url= or query=, plus options). Returns estimate{minimum,maximum,raises},
+        balance and would_402. Raises ClawifiDryRunUnsupportedError, without sending the call, on an older API.
+        """
+        if operation not in ESTIMATE_ROUTES:
+            raise ValueError(f"unknown operation {operation!r}; expected one of {', '.join(sorted(ESTIMATE_ROUTES))}")
+        path, _ = ESTIMATE_ROUTES[operation]
+        await self._require_dry_run()
+        return await self.post(path, json={**args, "dry_run": True}, idempotent=True)
+
+    async def fetch(self, url: str, *, dry_run: bool = False, **kwargs: Any) -> dict[str, Any]:
+        return await self._billable("fetch", url, kwargs, dry_run)
+
+    async def scrape(self, url: str, *, dry_run: bool = False, **kwargs: Any) -> dict[str, Any]:
+        return await self._billable("scrape", url, kwargs, dry_run)
 
     async def schema_assist(self, **kwargs: Any) -> dict[str, Any]:
         return await self.post("/schema/assist", json=kwargs, idempotent=True)
 
-    async def search_free(self, query: str, **kwargs: Any) -> dict[str, Any]:
-        return await self.post("/search/free", json={"query": query, **kwargs}, idempotent=True)
+    async def search_free(self, query: str, *, dry_run: bool = False, **kwargs: Any) -> dict[str, Any]:
+        return await self._billable("search_free", query, kwargs, dry_run)
 
-    async def extract(self, url: str, **kwargs: Any) -> dict[str, Any]:
-        return await self.post("/extract", json={"url": url, **kwargs}, idempotent=True)
+    async def search_content(self, query: str, *, full: bool | None = None, dry_run: bool = False, **kwargs: Any) -> dict[str, Any]:
+        """Search and read the top results. Compact by default; full=True returns the full output."""
+        if full is not None:
+            kwargs["full"] = full
+        return await self._billable("search_content", query, kwargs, dry_run)
 
-    async def map(self, url: str, **kwargs: Any) -> dict[str, Any]:
-        return await self.post("/map", json={"url": url, **kwargs}, idempotent=True)
+    async def extract(self, url: str, *, dry_run: bool = False, **kwargs: Any) -> dict[str, Any]:
+        return await self._billable("extract", url, kwargs, dry_run)
 
-    async def crawl(self, seed_url: str, **kwargs: Any) -> dict[str, Any]:
-        return await self.post("/crawl", json={"seed_url": seed_url, **kwargs}, idempotent=True)
+    async def map(self, url: str, *, dry_run: bool = False, **kwargs: Any) -> dict[str, Any]:
+        return await self._billable("map", url, kwargs, dry_run)
+
+    async def crawl(self, seed_url: str, *, dry_run: bool = False, **kwargs: Any) -> dict[str, Any]:
+        return await self._billable("crawl", seed_url, kwargs, dry_run)
 
     async def create_job(self, operation: str, payload: dict[str, Any]) -> dict[str, Any]:
         return await self.post("/jobs", json={"operation": operation, "payload": payload})
@@ -277,6 +385,17 @@ class AsyncClawifi(_BaseClient):
 
     async def credits(self) -> dict[str, Any]:
         return await self.get("/usage")
+
+    async def billing_plans(self) -> dict[str, Any]:
+        """Plans, credit packs and credit_costs (credits per operation). Needs no API key."""
+        return await self.get("/billing/plans")
+
+
+def _version_tuple(version: str) -> tuple[int, ...]:
+    match = re.match(r"^\s*v?(\d+)(?:\.(\d+))?(?:\.(\d+))?", version or "")
+    if not match:
+        return (0, 0, 0)
+    return tuple(int(part or 0) for part in match.groups())
 
 
 def _decode_response(response: httpx.Response) -> dict[str, Any]:

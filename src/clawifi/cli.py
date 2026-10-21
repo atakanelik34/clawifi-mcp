@@ -6,6 +6,8 @@ import os
 import urllib.error
 import urllib.request
 
+from clawifi.mcp_setup import WRITABLE_CLIENTS, run_init
+
 
 DEFAULT_API_BASE = "https://api.clawifi.qzz.io"
 
@@ -29,6 +31,18 @@ def run(argv: list[str] | None = None) -> None:
 
     quicktest = subcommands.add_parser("quicktest", help="Verify your API key against the Clawifi API.")
     quicktest.add_argument("--url", default="https://example.com")
+
+    init = subcommands.add_parser("init", help="Find installed MCP clients and print how to add Clawifi to each.")
+    init.add_argument("--all", dest="show_all", action="store_true", help="Show every client, not only the ones found.")
+    init.add_argument(
+        "--write",
+        choices=WRITABLE_CLIENTS,
+        help="Write the Clawifi entry into that client's config file, after confirmation and a backup.",
+    )
+    init.add_argument("--remote", action="store_true", help="With --write cursor, write the remote MCP entry instead of stdio.")
+
+    credits = subcommands.add_parser("credits", help="Show what each operation costs in credits.")
+    credits.add_argument("--json", action="store_true")
 
     mcp = subcommands.add_parser("mcp", help="Print MCP setup helpers.")
     mcp_subcommands = mcp.add_subparsers(dest="mcp_command", required=True)
@@ -163,6 +177,24 @@ def run(argv: list[str] | None = None) -> None:
             json_body={"url": args.url, "timeout_seconds": 15},
         )
         print(json.dumps({"ok": True, "success": payload.get("success"), "source": payload.get("source")}, indent=2))
+        raise SystemExit(0)
+
+    if args.command == "init":
+        raise SystemExit(run_init(write=args.write, remote=args.remote, show_all=args.show_all))
+
+    if args.command == "credits":
+        payload = _request("GET", f"{api_base}/billing/plans")
+        costs = payload.get("credit_costs") or []
+        if args.json:
+            print(json.dumps(costs, indent=2, sort_keys=True))
+            raise SystemExit(0)
+        print("Credits per operation (https://clawifi.qzz.io/pricing):")
+        width = max([len(str(cost.get("operation", ""))) for cost in costs] + [9])
+        for cost in costs:
+            line = f"{str(cost.get('operation', '')):<{width}}  {cost.get('credits')} per {cost.get('unit')}"
+            if cost.get("notes"):
+                line += f"  ({cost['notes']})"
+            print(line)
         raise SystemExit(0)
 
     if args.command == "mcp" and args.mcp_command == "config":
@@ -312,7 +344,7 @@ def _required_api_key() -> str:
 
 def _request(method: str, url: str, *, json_body: dict | None = None, token: str | None = None) -> dict:
     body = json.dumps(json_body or {}, separators=(",", ":")).encode("utf-8") if json_body is not None else None
-    headers = {"Content-Type": "application/json", "User-Agent": "clawifi-cli/0.2.0 (+https://clawifi.qzz.io)"}
+    headers = {"Content-Type": "application/json", "User-Agent": "clawifi-cli/0.3.0 (+https://clawifi.qzz.io)"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
     request = urllib.request.Request(url, data=body, method=method, headers=headers)

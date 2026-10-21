@@ -10,7 +10,7 @@
 
 Official Python SDK, CLI, and MCP server for [Clawifi](https://clawifi.qzz.io), the agent-native internet gateway: one typed API and MCP surface for fetching, scraping, searching, and crawling the web on behalf of an agent, with Cloudflare-challenge handling and realistic browser fingerprinting behind it.
 
-This package is a thin client over the hosted Clawifi API (hosted API version 1.4.0 at time of release). It does not include the Clawifi server, browser runtime, or Playwright — those run on Clawifi's infrastructure. Live capability evidence and uptime: [clawifi.qzz.io/benchmarks](https://clawifi.qzz.io/benchmarks) · [clawifi.qzz.io/trust](https://clawifi.qzz.io/trust) · [clawifi.qzz.io/status](https://clawifi.qzz.io/status).
+This package is a thin client over the hosted Clawifi API (hosted API version 1.6.3 at time of release). It does not include the Clawifi server, browser runtime, or Playwright — those run on Clawifi's infrastructure. Live capability evidence and uptime: [clawifi.qzz.io/benchmarks](https://clawifi.qzz.io/benchmarks) · [clawifi.qzz.io/trust](https://clawifi.qzz.io/trust) · [clawifi.qzz.io/status](https://clawifi.qzz.io/status).
 
 ## Install
 
@@ -36,19 +36,61 @@ export CLAWIFI_API_KEY="clawifi_live_..."
 clawifi quicktest --url https://example.com
 ```
 
-## Use as an MCP server
+## Set up your MCP client
 
 ```bash
-clawifi mcp config
+clawifi init
 ```
 
-prints a ready-to-paste MCP client config. The MCP server itself runs as:
+finds the MCP clients installed on this machine (Claude Code, Codex, Cursor, Claude Desktop, VS Code) and prints, for each one, the install line for the local server (`clawifi-mcp`, stdio) and for the remote server, followed by a first call to try. It only prints; it never shows your key, only `$CLAWIFI_API_KEY` or a masked `clawifi_live_****`. `clawifi init --all` shows every client, found or not.
+
+To have it edit a config file for you:
+
+```bash
+clawifi init --write cursor            # ~/.cursor/mcp.json, stdio entry
+clawifi init --write cursor --remote   # ~/.cursor/mcp.json, remote entry
+clawifi init --write claude-desktop    # claude_desktop_config.json, stdio entry
+```
+
+`--write` asks before it changes anything and copies the existing file to `<file>.bak-<timestamp>` first. Claude Code, Codex and VS Code have their own install commands, which `init` prints.
+
+For Claude Code, for example:
+
+```bash
+# local (stdio)
+claude mcp add --env CLAWIFI_API_KEY=$CLAWIFI_API_KEY --transport stdio clawifi -- clawifi-mcp
+# remote
+claude mcp add --transport http clawifi https://api.clawifi.qzz.io/mcp --header "Authorization: Bearer $CLAWIFI_API_KEY"
+```
+
+## Use as an MCP server
+
+The local MCP server runs as:
 
 ```bash
 clawifi-mcp
 ```
 
-reading `CLAWIFI_API_KEY` from the environment.
+reading `CLAWIFI_API_KEY` from the environment. `clawifi mcp config` prints a minimal config for it. Every tool carries a title and the MCP hints `readOnlyHint`, `destructiveHint`, `idempotentHint` and `openWorldHint`; none is destructive.
+
+## Remote MCP
+
+Clawifi also runs a hosted MCP server, so nothing needs installing:
+
+- URL: `https://api.clawifi.qzz.io/mcp` (streamable HTTP)
+- Auth: `Authorization: Bearer <your key>`, or the `X-Clawifi-Api-Key: <your key>` header
+
+Without a key the remote server offers a keyless tier of four tools, `search_free`, `fetch_url`, `scrape_url` and `map_site`, at 12 calls a minute and 50 a day per address. With a key you get the full tool list.
+
+## Credits
+
+Calls are charged per operation (a plain fetch is 1 credit, a browser render 3, a crawl 1 per page, and so on). See [clawifi.qzz.io/pricing](https://clawifi.qzz.io/pricing), or print the current table, which needs no key:
+
+```bash
+clawifi credits
+```
+
+The `credits` MCP tool and `client.credits()` show your own usage and balance instead.
 
 ## Use as a Python SDK
 
@@ -61,6 +103,28 @@ print(page["success"])
 ```
 
 An async client is also available as `clawifi.AsyncClawifi`.
+
+`search_content` searches and reads the top results; it is compact by default and `full=True` returns the full output:
+
+```python
+results = client.search_content("agent memory benchmarks", full=True)
+```
+
+Responses are returned as the API sends them, so fields such as `published_at`, `modified_at` and `fetched_at` come through untouched.
+
+### Estimates (hosted API 1.7.0 and later)
+
+```python
+quote = client.estimate("fetch", url="https://example.com")
+# {"estimate": {"minimum": ..., "maximum": ..., "raises": [...]}, "balance": ..., "would_402": ...}
+client.crawl("https://example.com", max_pages=50, dry_run=True)
+```
+
+`estimate()` and `dry_run=True` work for `fetch`, `scrape`, `extract`, `map`, `crawl`, `search_free` and `search_content`. Before the first dry run the client checks the API version at `/product/manifest`; an API older than 1.7.0 would ignore `dry_run` and run (and bill) the call, so the client raises `ClawifiDryRunUnsupportedError` and sends nothing.
+
+### Rate limits
+
+A `429` raises `ClawifiAPIError` with `retry_after` (seconds, from the `Retry-After` header) and `limit_scope` (which limit was hit, from `details.limit_scope`). Retryable calls wait out a `Retry-After` of up to 10 seconds before retrying; a longer one is raised straight away.
 
 ## MCP tools
 

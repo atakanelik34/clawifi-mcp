@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 (2026-10-22)
+
+For hosted API 1.7.1. Metadata only, no code change.
+
+- LICENSE names the copyright holder as ReARC Labs Inc. (0.3.0 shipped the older "ReARC Labs" text).
+
 ## 0.3.0 (2026-10-22)
 
 For hosted API 1.7.0.

@@ -4,9 +4,11 @@ import os
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
-from clawifi.client import Clawifi
+from clawifi.client import ESTIMATE_ROUTES, Clawifi
+from clawifi.errors import ClawifiAPIError, ClawifiDryRunUnsupportedError, ClawifiTransportError
 
 mcp = FastMCP("clawifi")
 
@@ -15,6 +17,8 @@ mcp = FastMCP("clawifi")
 WEB_READ = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=True)
 # Starts server-side work on the open web: each call creates a new crawl or job, nothing is overwritten.
 WEB_START = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True)
+# Prices a call on the open web without running it: no fetch, no charge, the same answer for the same input.
+ESTIMATE = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=True)
 # Reads of the caller's own Clawifi account state; they touch only Clawifi's API.
 ACCOUNT_READ = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False)
 
@@ -69,6 +73,36 @@ def crawl(seed_url: str, **kwargs: Any) -> dict[str, Any]:
     """Start an asynchronous crawl from a seed URL. Returns a crawl_id to poll."""
     with _client() as client:
         return client.crawl(seed_url, **kwargs)
+
+
+@mcp.tool(title="Estimate credits", annotations=ESTIMATE)
+def estimate(operation: str, args: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Price a billable call without running it or charging for it (Clawifi API 1.7.0+). operation is one of
+    fetch, scrape, extract, map, crawl, search_free or search_content; args are that operation's fields, for
+    example {"url": "https://example.com"}, {"seed_url": ...} for crawl or {"query": ...} for the searches. Returns
+    estimate {minimum, maximum, raises}, balance, would_402, would_429 and binding_limit; charged is 0."""
+    try:
+        with _client() as client:
+            return client.estimate(operation, **(args or {}))
+    except ClawifiDryRunUnsupportedError as exc:
+        raise ToolError(str(exc)) from exc
+    except ClawifiAPIError as exc:
+        raise ToolError(_api_error_text(exc)) from exc
+    except ClawifiTransportError as exc:
+        raise ToolError(f"Clawifi API unreachable: {exc}") from exc
+    except ValueError as exc:
+        raise ToolError(f"{exc}. operation must be one of {', '.join(sorted(ESTIMATE_ROUTES))}") from exc
+
+
+def _api_error_text(exc: ClawifiAPIError) -> str:
+    parts = [str(exc)]
+    if exc.status_code is not None:
+        parts.append(f"status {exc.status_code}")
+    if exc.code:
+        parts.append(f"code {exc.code}")
+    if exc.request_id:
+        parts.append(f"request_id {exc.request_id}")
+    return "; ".join(parts)
 
 
 @mcp.tool(title="Get crawl status", annotations=ACCOUNT_READ)

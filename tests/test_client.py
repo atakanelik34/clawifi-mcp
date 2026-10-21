@@ -288,3 +288,111 @@ def test_billing_plans_returns_credit_costs_without_a_key(monkeypatch):
     assert client.billing_plans()["credit_costs"][0]["operation"] == "search"
     assert seen[0].url.path == "/billing/plans"
     assert "authorization" not in seen[0].headers
+
+
+BILLABLE_CALLS = [
+    ("fetch", "https://example.com", "/fetch"),
+    ("scrape", "https://example.com", "/scrape"),
+    ("extract", "https://example.com", "/extract"),
+    ("map", "https://example.com", "/map"),
+    ("crawl", "https://example.com", "/crawl"),
+    ("search_free", "agent memory", "/search/free"),
+    ("search_content", "agent memory", "/search/content"),
+]
+
+
+@pytest.mark.parametrize("method,first,path", BILLABLE_CALLS)
+def test_a_normal_call_sends_no_dry_run_key(method, first, path):
+    calls: list = []
+    client = Clawifi(api_key="test-token", transport=_api("1.7.0", calls))
+
+    getattr(client, method)(first)
+    getattr(client, method)(first, dry_run=False)
+
+    assert [p for _, p, _ in calls] == [path, path]
+    assert all("dry_run" not in body for _, _, body in calls)
+
+
+def test_a_normal_fetch_body_has_no_dry_run_key_and_dry_run_false_sends_nothing():
+    calls: list = []
+    client = Clawifi(api_key="test-token", transport=_api("1.7.0", calls))
+
+    client.fetch("https://example.com", timeout_seconds=15)
+    client.fetch("https://example.com", dry_run=False)
+
+    assert calls == [
+        ("POST", "/fetch", {"url": "https://example.com", "timeout_seconds": 15}),
+        ("POST", "/fetch", {"url": "https://example.com"}),
+    ]
+
+
+@pytest.mark.parametrize("value", [1, 0, "true", "false", "yes", [], {}])
+def test_a_non_boolean_dry_run_is_refused_before_anything_is_sent(value):
+    calls: list = []
+    client = Clawifi(api_key="test-token", transport=_api("1.7.0", calls))
+    with pytest.raises(TypeError, match="dry_run must be True or False"):
+        client.fetch("https://example.com", dry_run=value)
+    assert calls == []
+
+
+def test_dry_run_is_sent_as_the_json_boolean_true():
+    calls: list = []
+    client = Clawifi(api_key="test-token", transport=_api("1.7.0", calls, body=ESTIMATE_BODY))
+    client.fetch("https://example.com", dry_run=True)
+    client.estimate("search_free", query="q", dry_run=False)
+    raw = [body for _, path, body in calls if path != "/product/manifest"]
+    assert raw == [{"url": "https://example.com", "dry_run": True}, {"query": "q", "dry_run": True}]
+    assert all(body["dry_run"] is True for body in raw)
+
+
+def test_schema_assist_never_sends_dry_run():
+    calls: list = []
+    client = Clawifi(api_key="test-token", transport=_api("1.7.0", calls))
+    client.schema_assist(mode="infer", html="<p>x</p>", dry_run=False)
+    assert calls == [("POST", "/schema/assist", {"mode": "infer", "html": "<p>x</p>"})]
+    with pytest.raises(ClawifiDryRunUnsupportedError):
+        client.schema_assist(mode="infer", html="<p>x</p>", dry_run=True)
+    assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_async_normal_calls_send_no_dry_run_key():
+    calls: list = []
+    async with AsyncClawifi(api_key="test-token", transport=_api("1.7.0", calls)) as client:
+        await client.fetch("https://example.com")
+        await client.crawl("https://example.com", dry_run=False)
+        await client.schema_assist(mode="infer", dry_run=False)
+        with pytest.raises(TypeError):
+            await client.scrape("https://example.com", dry_run="true")
+    assert [path for _, path, _ in calls] == ["/fetch", "/crawl", "/schema/assist"]
+    assert all("dry_run" not in body for _, _, body in calls)
+
+
+@pytest.mark.parametrize("version", ["1.7.0rc1", "1.7.0a1", "1.7.0b2", "1.7.0.dev3", "1.7.0-rc.1", "1.6.9", "1.6.99", "0.9.0", "1.7.0weird"])
+def test_pre_releases_and_older_versions_sort_below_1_7_0(version):
+    from clawifi.client import DRY_RUN_MIN_API_VERSION, _version_tuple
+
+    assert _version_tuple(version) < (*DRY_RUN_MIN_API_VERSION, 0)
+    calls: list = []
+    client = Clawifi(api_key="test-token", transport=_api(version, calls))
+    with pytest.raises(ClawifiDryRunUnsupportedError):
+        client.estimate("fetch", url="https://example.com")
+    assert [path for _, path, _ in calls] == ["/product/manifest"]
+
+
+@pytest.mark.parametrize("version", ["1.7.0", "v1.7.0", "1.7.0.post1", "1.7.0-post2", "1.7.0+build.5", "1.7.1", "1.10.0", "2.0.0", "1.8"])
+def test_final_and_post_releases_from_1_7_0_pass(version):
+    from clawifi.client import DRY_RUN_MIN_API_VERSION, _version_tuple
+
+    assert _version_tuple(version) >= (*DRY_RUN_MIN_API_VERSION, 0)
+    calls: list = []
+    client = Clawifi(api_key="test-token", transport=_api(version, calls, body=ESTIMATE_BODY))
+    assert client.estimate("fetch", url="https://example.com") == ESTIMATE_BODY
+
+
+def test_version_ordering_is_numeric_not_lexical():
+    from clawifi.client import _version_tuple
+
+    assert _version_tuple("1.10.0") > _version_tuple("1.9.0")
+    assert _version_tuple("1.7.0rc1") < _version_tuple("1.7.0") == _version_tuple("1.7.0.post1")
+    assert _version_tuple("") == (0, 0, 0, 0)

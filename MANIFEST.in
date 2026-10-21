@@ -1,0 +1,3 @@
+include CHANGELOG.md server.json
+include tests/conftest.py
+recursive-include tests/fixtures *.json

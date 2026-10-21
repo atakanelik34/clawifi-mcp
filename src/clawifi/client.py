@@ -17,7 +17,9 @@ TERMINAL_JOB_STATUSES = {"succeeded", "failed", "cancelled"}
 TERMINAL_CRAWL_STATUSES = {"succeeded", "partial", "failed", "stopped", "interrupted"}
 MAX_RETRY_AFTER_SECONDS = 10.0
 DRY_RUN_MIN_API_VERSION = (1, 7, 0)
-# Billable operations that accept dry_run, and the field their first argument fills.
+# Billable operations that accept dry_run, and the field their first argument fills. The API (1.7.0) also takes
+# dry_run on POST /jobs; any other POST route answers 422 to a dry_run key, even false, so the client sends the key
+# only here and only as the JSON boolean true.
 ESTIMATE_ROUTES = {
     "fetch": ("/fetch", "url"),
     "scrape": ("/scrape", "url"),
@@ -88,7 +90,7 @@ class _BaseClient:
 
     def _check_dry_run_manifest(self, manifest: dict[str, Any] | None) -> None:
         version = str((manifest or {}).get("version") or "")
-        if _version_tuple(version) < DRY_RUN_MIN_API_VERSION:
+        if _version_tuple(version) < (*DRY_RUN_MIN_API_VERSION, 0):
             shown = version or "unknown"
             raise ClawifiDryRunUnsupportedError(
                 f"dry_run needs Clawifi API 1.7.0 or later; {self.config.api_base} reports {shown}. "
@@ -151,7 +153,7 @@ class Clawifi(_BaseClient):
     def _billable(self, operation: str, first: Any, kwargs: dict[str, Any], dry_run: bool) -> dict[str, Any]:
         path, field = ESTIMATE_ROUTES[operation]
         body = {field: first, **kwargs}
-        if dry_run:
+        if _dry_run_flag(dry_run):
             self._require_dry_run()
             body["dry_run"] = True
         return self.post(path, json=body, idempotent=True)
@@ -176,7 +178,8 @@ class Clawifi(_BaseClient):
             raise ValueError(f"unknown operation {operation!r}; expected one of {', '.join(sorted(ESTIMATE_ROUTES))}")
         path, _ = ESTIMATE_ROUTES[operation]
         self._require_dry_run()
-        return self.post(path, json={**args, "dry_run": True}, idempotent=True)
+        body = {key: value for key, value in args.items() if key != "dry_run"}
+        return self.post(path, json={**body, "dry_run": True}, idempotent=True)
 
     def fetch(self, url: str, *, dry_run: bool = False, **kwargs: Any) -> dict[str, Any]:
         return self._billable("fetch", url, kwargs, dry_run)
@@ -185,6 +188,7 @@ class Clawifi(_BaseClient):
         return self._billable("scrape", url, kwargs, dry_run)
 
     def schema_assist(self, **kwargs: Any) -> dict[str, Any]:
+        _refuse_dry_run("schema_assist", kwargs)
         return self.post("/schema/assist", json=kwargs, idempotent=True)
 
     def search_free(self, query: str, *, dry_run: bool = False, **kwargs: Any) -> dict[str, Any]:
@@ -297,7 +301,7 @@ class AsyncClawifi(_BaseClient):
     async def _billable(self, operation: str, first: Any, kwargs: dict[str, Any], dry_run: bool) -> dict[str, Any]:
         path, field = ESTIMATE_ROUTES[operation]
         body = {field: first, **kwargs}
-        if dry_run:
+        if _dry_run_flag(dry_run):
             await self._require_dry_run()
             body["dry_run"] = True
         return await self.post(path, json=body, idempotent=True)
@@ -322,7 +326,8 @@ class AsyncClawifi(_BaseClient):
             raise ValueError(f"unknown operation {operation!r}; expected one of {', '.join(sorted(ESTIMATE_ROUTES))}")
         path, _ = ESTIMATE_ROUTES[operation]
         await self._require_dry_run()
-        return await self.post(path, json={**args, "dry_run": True}, idempotent=True)
+        body = {key: value for key, value in args.items() if key != "dry_run"}
+        return await self.post(path, json={**body, "dry_run": True}, idempotent=True)
 
     async def fetch(self, url: str, *, dry_run: bool = False, **kwargs: Any) -> dict[str, Any]:
         return await self._billable("fetch", url, kwargs, dry_run)
@@ -331,6 +336,7 @@ class AsyncClawifi(_BaseClient):
         return await self._billable("scrape", url, kwargs, dry_run)
 
     async def schema_assist(self, **kwargs: Any) -> dict[str, Any]:
+        _refuse_dry_run("schema_assist", kwargs)
         return await self.post("/schema/assist", json=kwargs, idempotent=True)
 
     async def search_free(self, query: str, *, dry_run: bool = False, **kwargs: Any) -> dict[str, Any]:
@@ -391,11 +397,36 @@ class AsyncClawifi(_BaseClient):
         return await self.get("/billing/plans")
 
 
-def _version_tuple(version: str) -> tuple[int, ...]:
-    match = re.match(r"^\s*v?(\d+)(?:\.(\d+))?(?:\.(\d+))?", version or "")
+_VERSION = re.compile(r"^\s*v?(\d+)(?:\.(\d+))?(?:\.(\d+))?(.*?)\s*$", re.I)
+# What may follow X.Y.Z on a final release: a post-release (1.7.0.post1, 1.7.0-post2) and/or a local label (+abc).
+_FINAL_SUFFIX = re.compile(r"^(?:[-_.]?post[-_.]?\d*)?(?:\+[a-z0-9.]+)?$", re.I)
+
+
+def _version_tuple(version: str) -> tuple[int, int, int, int]:
+    """(major, minor, patch, release) where release is 0 for a final or post release and -1 for anything else
+    (1.7.0rc1, 1.7.0a1, 1.7.0b2, 1.7.0.dev3, an unknown suffix), so a pre-release sorts below its final release."""
+    match = _VERSION.match(version or "")
     if not match:
-        return (0, 0, 0)
-    return tuple(int(part or 0) for part in match.groups())
+        return (0, 0, 0, 0)
+    major, minor, patch, suffix = match.groups()
+    release = 0 if _FINAL_SUFFIX.match(suffix) else -1
+    return (int(major), int(minor or 0), int(patch or 0), release)
+
+
+def _dry_run_flag(dry_run: Any) -> bool:
+    """True only for the boolean True. False and None mean no dry_run key in the body; any other value is refused,
+    because the API answers a non-boolean dry_run with 422 and treating "yes" as false would run and bill the call."""
+    if dry_run is True:
+        return True
+    if dry_run is False or dry_run is None:
+        return False
+    raise TypeError(f"dry_run must be True or False, not {dry_run!r}")
+
+
+def _refuse_dry_run(operation: str, body: dict[str, Any]) -> None:
+    """Drop a dry_run key on a route that cannot dry-run (the API would answer 422 even to false); refuse True."""
+    if "dry_run" in body and _dry_run_flag(body.pop("dry_run")):
+        raise ClawifiDryRunUnsupportedError(f"{operation} cannot be dry-run; it is not billed per call")
 
 
 def _decode_response(response: httpx.Response) -> dict[str, Any]:

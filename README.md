@@ -10,7 +10,7 @@
 
 Official Python SDK, CLI, and MCP server for [Clawifi](https://clawifi.qzz.io), the agent-native internet gateway: one typed API and MCP surface for fetching, scraping, searching, and crawling the web on behalf of an agent, with Cloudflare-challenge handling and realistic browser fingerprinting behind it.
 
-This package is a thin client over the hosted Clawifi API (hosted API version 1.6.3 at time of release). It does not include the Clawifi server, browser runtime, or Playwright — those run on Clawifi's infrastructure. Live capability evidence and uptime: [clawifi.qzz.io/benchmarks](https://clawifi.qzz.io/benchmarks) · [clawifi.qzz.io/trust](https://clawifi.qzz.io/trust) · [clawifi.qzz.io/status](https://clawifi.qzz.io/status).
+This package is a thin client over the hosted Clawifi API (hosted API version 1.7.0 at time of release). It does not include the Clawifi server, browser runtime, or Playwright — those run on Clawifi's infrastructure. Live capability evidence and uptime: [clawifi.qzz.io/benchmarks](https://clawifi.qzz.io/benchmarks) · [clawifi.qzz.io/trust](https://clawifi.qzz.io/trust) · [clawifi.qzz.io/status](https://clawifi.qzz.io/status).
 
 ## Install
 
@@ -116,11 +116,16 @@ Responses are returned as the API sends them, so fields such as `published_at`, 
 
 ```python
 quote = client.estimate("fetch", url="https://example.com")
-# {"estimate": {"minimum": ..., "maximum": ..., "raises": [...]}, "balance": ..., "would_402": ...}
+# {"dry_run": true, "route": "POST /fetch", "estimate": {"minimum": ..., "maximum": ..., "raises": [...]},
+#  "balance": ..., "would_402": ..., "would_429": ..., "binding_limit": ..., "charged": 0}
 client.crawl("https://example.com", max_pages=50, dry_run=True)
 ```
 
-`estimate()` and `dry_run=True` work for `fetch`, `scrape`, `extract`, `map`, `crawl`, `search_free` and `search_content`. Before the first dry run the client checks the API version at `/product/manifest`; an API older than 1.7.0 would ignore `dry_run` and run (and bill) the call, so the client raises `ClawifiDryRunUnsupportedError` and sends nothing.
+`estimate()` and `dry_run=True` work for `fetch`, `scrape`, `extract`, `map`, `crawl`, `search_free` and `search_content`. Before the first dry run the client checks the API version at `/product/manifest`; an API older than 1.7.0 would ignore `dry_run` and run (and bill) the call, so the client raises `ClawifiDryRunUnsupportedError` and sends nothing. Pre-releases such as `1.7.0rc1` count as older than 1.7.0.
+
+`dry_run` is sent only when it is `True`, and only as the JSON boolean `true`: a normal call, or `dry_run=False`, has no `dry_run` key in its body, and a value that is not a bool raises `TypeError` before anything is sent. The API answers any `dry_run` key (even `false`) on a route that cannot dry-run with a 422, so `schema_assist` drops `dry_run=False` and refuses `dry_run=True`.
+
+The `estimate` MCP tool does the same from an agent: `estimate(operation="fetch", args={"url": "https://example.com"})`.
 
 ### Rate limits
 
@@ -136,6 +141,7 @@ A `429` raises `ClawifiAPIError` with `retry_after` (seconds, from the `Retry-Af
 | `extract` | Extract structured data from a URL. |
 | `map_site` | Map a site's discoverable URLs starting from a seed URL. |
 | `crawl` | Start an asynchronous crawl from a seed URL; returns a `crawl_id` to poll. |
+| `estimate` | Price a `fetch`, `scrape`, `extract`, `map`, `crawl`, `search_free` or `search_content` call without running it or charging for it (hosted API 1.7.0+). |
 | `get_crawl` | Get the current status and results of a crawl. |
 | `create_job` | Create an asynchronous job for a billable operation; returns a `job_id` to poll. |
 | `get_job` | Get the current status and results of a job. |

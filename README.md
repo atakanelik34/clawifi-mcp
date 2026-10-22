@@ -8,9 +8,9 @@
 [![MCP](https://img.shields.io/badge/MCP-server-purple.svg)](https://clawifi.dev/docs)
 [![GitHub stars](https://img.shields.io/github/stars/atakanelik34/clawifi-mcp?style=flat)](https://github.com/atakanelik34/clawifi-mcp/stargazers)
 
-Official Python SDK, CLI, and MCP server for [Clawifi](https://clawifi.dev), the agent-native internet gateway: one typed API and MCP surface for fetching, scraping, searching, and crawling the web on behalf of an agent, with Cloudflare-challenge handling and realistic browser fingerprinting behind it.
+Official Python SDK, CLI, and MCP server for [Clawifi](https://clawifi.dev), web search and page reading for AI agents: search many engines as one, read pages and PDFs, map and crawl sites, and get back only the passages that answer the question, each with its source. One typed API and MCP surface for all of it.
 
-This package is a thin client over the hosted Clawifi API (hosted API version 1.7.2 at time of release). It does not include the Clawifi server, browser runtime, or Playwright — those run on Clawifi's infrastructure. Live capability evidence and uptime: [clawifi.dev/benchmarks](https://clawifi.dev/benchmarks) · [clawifi.dev/trust](https://clawifi.dev/trust) · [clawifi.dev/status](https://clawifi.dev/status).
+This package is a thin client over the hosted Clawifi API (hosted API version 1.7.2 at time of release); the Clawifi server is not included. Docs, pricing and status: [clawifi.dev/docs](https://clawifi.dev/docs) · [clawifi.dev/pricing](https://clawifi.dev/pricing) · [clawifi.dev/status](https://clawifi.dev/status) · [clawifi.dev/security](https://clawifi.dev/security).
 
 ## One-click install (hosted server, no key needed to try)
 

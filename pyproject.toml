@@ -1,6 +1,6 @@
 [project]
 name = "clawifi"
-version = "0.3.1"
+version = "0.4.0"
 description = "Official Python SDK, CLI, and MCP server for Clawifi, the agent-native internet gateway."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -17,8 +17,8 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://clawifi.qzz.io"
-Documentation = "https://clawifi.qzz.io/docs"
+Homepage = "https://clawifi.dev"
+Documentation = "https://clawifi.dev/docs"
 Repository = "https://github.com/atakanelik34/clawifi-mcp"
 
 [project.scripts]

@@ -5,12 +5,12 @@
 [![PyPI](https://img.shields.io/pypi/v/clawifi.svg)](https://pypi.org/project/clawifi/)
 [![Python](https://img.shields.io/pypi/pyversions/clawifi.svg)](https://pypi.org/project/clawifi/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![MCP](https://img.shields.io/badge/MCP-server-purple.svg)](https://clawifi.qzz.io/docs)
+[![MCP](https://img.shields.io/badge/MCP-server-purple.svg)](https://clawifi.dev/docs)
 [![GitHub stars](https://img.shields.io/github/stars/atakanelik34/clawifi-mcp?style=flat)](https://github.com/atakanelik34/clawifi-mcp/stargazers)
 
-Official Python SDK, CLI, and MCP server for [Clawifi](https://clawifi.qzz.io), the agent-native internet gateway: one typed API and MCP surface for fetching, scraping, searching, and crawling the web on behalf of an agent, with Cloudflare-challenge handling and realistic browser fingerprinting behind it.
+Official Python SDK, CLI, and MCP server for [Clawifi](https://clawifi.dev), the agent-native internet gateway: one typed API and MCP surface for fetching, scraping, searching, and crawling the web on behalf of an agent, with Cloudflare-challenge handling and realistic browser fingerprinting behind it.
 
-This package is a thin client over the hosted Clawifi API (hosted API version 1.7.0 at time of release). It does not include the Clawifi server, browser runtime, or Playwright — those run on Clawifi's infrastructure. Live capability evidence and uptime: [clawifi.qzz.io/benchmarks](https://clawifi.qzz.io/benchmarks) · [clawifi.qzz.io/trust](https://clawifi.qzz.io/trust) · [clawifi.qzz.io/status](https://clawifi.qzz.io/status).
+This package is a thin client over the hosted Clawifi API (hosted API version 1.7.2 at time of release). It does not include the Clawifi server, browser runtime, or Playwright — those run on Clawifi's infrastructure. Live capability evidence and uptime: [clawifi.dev/benchmarks](https://clawifi.dev/benchmarks) · [clawifi.dev/trust](https://clawifi.dev/trust) · [clawifi.dev/status](https://clawifi.dev/status).
 
 ## Install
 
@@ -60,7 +60,7 @@ For Claude Code, for example:
 # local (stdio)
 claude mcp add --env CLAWIFI_API_KEY=$CLAWIFI_API_KEY --transport stdio clawifi -- clawifi-mcp
 # remote
-claude mcp add --transport http clawifi https://api.clawifi.qzz.io/mcp --header "Authorization: Bearer $CLAWIFI_API_KEY"
+claude mcp add --transport http clawifi https://api.clawifi.dev/mcp --header "Authorization: Bearer $CLAWIFI_API_KEY"
 ```
 
 ## Use as an MCP server
@@ -79,14 +79,16 @@ The billable tools (`fetch`, `scrape`, `extract`, `map_site`, `crawl`, `search_f
 
 Clawifi also runs a hosted MCP server, so nothing needs installing:
 
-- URL: `https://api.clawifi.qzz.io/mcp` (streamable HTTP)
+- URL: `https://api.clawifi.dev/mcp` (streamable HTTP)
 - Auth: `Authorization: Bearer <your key>`, or the `X-Clawifi-Api-Key: <your key>` header
+
+The old host `api.clawifi.qzz.io` (API and `/mcp`) keeps working, so `CLAWIFI_API_BASE=https://api.clawifi.qzz.io` and existing remote configs need no change.
 
 Without a key the remote server offers a keyless tier of four tools, `search_free`, `fetch_url`, `scrape_url` and `map_site`, at 12 calls a minute and 50 a day per address. With a key you get the full tool list.
 
 ## Credits
 
-Calls are charged per operation (a plain fetch is 1 credit, a browser render 3, a crawl 1 per page, and so on). See [clawifi.qzz.io/pricing](https://clawifi.qzz.io/pricing), or print the current table, which needs no key:
+Calls are charged per operation (a plain fetch is 1 credit, a browser render 3, a crawl 1 per page, and so on). See [clawifi.dev/pricing](https://clawifi.dev/pricing), or print the current table, which needs no key:
 
 ```bash
 clawifi credits
@@ -154,7 +156,7 @@ A `429` raises `ClawifiAPIError` with `retry_after` (seconds, from the `Retry-Af
 
 ## Documentation
 
-See [clawifi.qzz.io/docs](https://clawifi.qzz.io/docs) for the full API reference, MCP tool list, and CLI command reference.
+See [clawifi.dev/docs](https://clawifi.dev/docs) for the full API reference, MCP tool list, and CLI command reference.
 
 ## License
 

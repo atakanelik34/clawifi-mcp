@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0 (2026-10-22)
+
+For hosted API 1.7.2. Default hosts move to clawifi.dev.
+
+- SDK and CLI: the default API base is `https://api.clawifi.dev`. `CLAWIFI_API_BASE` and `--api-base` still override it, and `https://api.clawifi.qzz.io` keeps working unchanged (no redirect, no warning).
+- `clawifi init`: remote install lines use `https://api.clawifi.dev/mcp`.
+- Site links (signup, docs, pricing, the CLI's User-Agent) point at `https://clawifi.dev`; the old site redirects there.
+- `server.json`: remote `https://api.clawifi.dev/mcp`, website `https://clawifi.dev`, version 0.4.0.
+
 ## 0.3.1 (2026-10-22)
 
 For hosted API 1.7.1. Metadata only, no code change.

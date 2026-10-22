@@ -24,7 +24,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, TextIO
 
-REMOTE_MCP_URL = "https://api.clawifi.qzz.io/mcp"
+REMOTE_MCP_URL = "https://api.clawifi.dev/mcp"
 SERVER_NAME = "clawifi"
 KEY_VAR = "CLAWIFI_API_KEY"
 WRITABLE_CLIENTS = ("cursor", "claude-desktop")

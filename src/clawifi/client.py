@@ -11,7 +11,7 @@ import httpx
 
 from clawifi.errors import ClawifiAPIError, ClawifiDryRunIgnoredError, ClawifiDryRunUnsupportedError, ClawifiTransportError, parse_retry_after
 
-DEFAULT_API_BASE = "https://api.clawifi.qzz.io"
+DEFAULT_API_BASE = "https://api.clawifi.dev"
 RETRYABLE_STATUS_CODES = {408, 425, 429, 500, 502, 503, 504}
 TERMINAL_JOB_STATUSES = {"succeeded", "failed", "cancelled"}
 TERMINAL_CRAWL_STATUSES = {"succeeded", "partial", "failed", "stopped", "interrupted"}
@@ -74,7 +74,7 @@ class _BaseClient:
         self._dry_run_checked = False
 
     def _headers(self) -> dict[str, str]:
-        headers = {"Accept": "application/json", "User-Agent": "clawifi/0.3.0"}
+        headers = {"Accept": "application/json", "User-Agent": "clawifi/0.4.0"}
         if self.config.api_key:
             headers["Authorization"] = f"Bearer {self.config.api_key}"
         return headers

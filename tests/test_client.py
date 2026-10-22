@@ -460,3 +460,25 @@ async def test_async_dry_run_is_verified_too():
         with pytest.raises(ClawifiDryRunIgnoredError):
             await client.scrape("https://example.com", dry_run=True)
         assert await client.scrape("https://example.com") == {"success": True}
+
+
+def test_default_api_base_is_clawifi_dev_and_the_old_host_is_used_unchanged(monkeypatch):
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        return httpx.Response(200, json={"credit_costs": []})
+
+    monkeypatch.delenv("CLAWIFI_API_BASE", raising=False)
+    Clawifi(transport=httpx.MockTransport(handler)).billing_plans()
+    monkeypatch.setenv("CLAWIFI_API_BASE", "https://api.clawifi.qzz.io/")
+    Clawifi(transport=httpx.MockTransport(handler)).billing_plans()
+    Clawifi(api_base="https://api.clawifi.qzz.io", transport=httpx.MockTransport(handler)).billing_plans()
+    assert seen == ["https://api.clawifi.dev/billing/plans", "https://api.clawifi.qzz.io/billing/plans", "https://api.clawifi.qzz.io/billing/plans"]
+
+
+def test_no_source_file_points_at_the_old_hosts():
+    from pathlib import Path
+
+    src = Path(__file__).resolve().parents[1] / "src" / "clawifi"
+    assert [path.name for path in src.glob("*.py") if "qzz" in path.read_text()] == []

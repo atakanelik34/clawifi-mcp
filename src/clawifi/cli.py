@@ -9,7 +9,7 @@ import urllib.request
 from clawifi.mcp_setup import WRITABLE_CLIENTS, run_init
 
 
-DEFAULT_API_BASE = "https://api.clawifi.qzz.io"
+DEFAULT_API_BASE = "https://api.clawifi.dev"
 
 
 def run(argv: list[str] | None = None) -> None:
@@ -188,7 +188,7 @@ def run(argv: list[str] | None = None) -> None:
         if args.json:
             print(json.dumps(costs, indent=2, sort_keys=True))
             raise SystemExit(0)
-        print("Credits per operation (https://clawifi.qzz.io/pricing):")
+        print("Credits per operation (https://clawifi.dev/pricing):")
         width = max([len(str(cost.get("operation", ""))) for cost in costs] + [9])
         for cost in costs:
             line = f"{str(cost.get('operation', '')):<{width}}  {cost.get('credits')} per {cost.get('unit')}"
@@ -344,7 +344,7 @@ def _required_api_key() -> str:
 
 def _request(method: str, url: str, *, json_body: dict | None = None, token: str | None = None) -> dict:
     body = json.dumps(json_body or {}, separators=(",", ":")).encode("utf-8") if json_body is not None else None
-    headers = {"Content-Type": "application/json", "User-Agent": "clawifi-cli/0.3.0 (+https://clawifi.qzz.io)"}
+    headers = {"Content-Type": "application/json", "User-Agent": "clawifi-cli/0.4.0 (+https://clawifi.dev)"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
     request = urllib.request.Request(url, data=body, method=method, headers=headers)

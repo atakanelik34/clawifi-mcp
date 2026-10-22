@@ -253,7 +253,7 @@ def list_monitors(limit: int | None = None, include_deleted: bool | None = None)
 def run() -> None:
     if not os.getenv("CLAWIFI_API_KEY"):
         raise SystemExit(
-            "CLAWIFI_API_KEY is required. Get one at https://clawifi.qzz.io/signup, "
+            "CLAWIFI_API_KEY is required. Get one at https://clawifi.dev/signup, "
             "then export CLAWIFI_API_KEY=... before starting this MCP server."
         )
     mcp.run()

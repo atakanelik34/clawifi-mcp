@@ -223,3 +223,29 @@ def test_cli_credits_prints_credit_costs_without_a_key(monkeypatch, capsys):
     with pytest.raises(SystemExit):
         cli.run(["credits", "--json"])
     assert json.loads(capsys.readouterr().out)[1]["operation"] == "crawl"
+
+
+def test_init_output_uses_the_clawifi_dev_hosts(home):
+    (home / ".cursor").mkdir()
+    code, output = _init(home, show_all=True)
+    assert code == 0
+    assert REMOTE_MCP_URL == "https://api.clawifi.dev/mcp"
+    assert "https://api.clawifi.dev/mcp" in output
+    assert "qzz" not in output
+
+
+def test_cli_default_api_base_is_clawifi_dev_and_the_old_host_still_works(monkeypatch, capsys):
+    seen = []
+
+    def fake_request(method, url, *, json_body=None, token=None):
+        seen.append(url)
+        return {"credit_costs": []}
+
+    monkeypatch.setattr(cli, "_request", fake_request)
+    monkeypatch.delenv("CLAWIFI_API_BASE", raising=False)
+    with pytest.raises(SystemExit):
+        cli.run(["credits"])
+    monkeypatch.setenv("CLAWIFI_API_BASE", "https://api.clawifi.qzz.io")
+    with pytest.raises(SystemExit):
+        cli.run(["credits"])
+    assert seen == ["https://api.clawifi.dev/billing/plans", "https://api.clawifi.qzz.io/billing/plans"]

@@ -6,7 +6,7 @@
 [![Python](https://img.shields.io/pypi/pyversions/clawifi.svg)](https://pypi.org/project/clawifi/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![MCP](https://img.shields.io/badge/MCP-server-purple.svg)](https://clawifi.dev/docs)
-[![GitHub stars](https://img.shields.io/github/stars/atakanelik34/clawifi-mcp?style=flat)](https://github.com/atakanelik34/clawifi-mcp/stargazers)
+[![GitHub stars](https://img.shields.io/github/stars/ReARCLabs/clawifi-mcp?style=flat)](https://github.com/ReARCLabs/clawifi-mcp/stargazers)
 
 Official Python SDK, CLI, and MCP server for [Clawifi](https://clawifi.dev), web search and page reading for AI agents: search many engines as one, read pages and PDFs, map and crawl sites, and get back only the passages that answer the question, each with its source. One typed API and MCP surface for all of it.
 

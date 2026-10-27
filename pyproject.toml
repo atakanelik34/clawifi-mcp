@@ -19,7 +19,7 @@ classifiers = [
 [project.urls]
 Homepage = "https://clawifi.dev"
 Documentation = "https://clawifi.dev/docs"
-Repository = "https://github.com/atakanelik34/clawifi-mcp"
+Repository = "https://github.com/ReARCLabs/clawifi-mcp"
 
 [project.scripts]
 clawifi = "clawifi.cli:run"

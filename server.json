@@ -7,7 +7,7 @@
   "websiteUrl": "https://clawifi.dev",
   "repository": {
     "source": "github",
-    "url": "https://github.com/atakanelik34/clawifi-mcp"
+    "url": "https://github.com/ReARCLabs/clawifi-mcp"
   },
   "packages": [
     {

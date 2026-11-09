@@ -131,6 +131,15 @@ results = client.search_content("agent memory benchmarks", full=True)
 
 Responses are returned as the API sends them, so fields such as `published_at`, `modified_at` and `fetched_at` come through untouched.
 
+### Response fields
+
+Every response field, and the fields a call does not return, is listed on the endpoint pages:
+[search](https://clawifi.dev/docs/api/post-search-free#response),
+[search with content](https://clawifi.dev/docs/api/post-search-content#response),
+[fetch](https://clawifi.dev/docs/api/post-fetch#response),
+[scrape](https://clawifi.dev/docs/api/post-scrape#response) and
+[extract](https://clawifi.dev/docs/api/post-extract#response).
+
 ### Estimates (hosted API 1.7.0 and later)
 
 ```python

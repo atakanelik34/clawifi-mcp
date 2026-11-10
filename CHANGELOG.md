@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.1 (2026-11-10)
+
+For hosted API 1.12.1.
+
+- MCP `fetch`: new parameters `content_scope` (`"main"`, the default, or `"full"` for the whole page text with scripts and styles removed) and `render` (`"never"`, the default, `"auto"` to open the browser only for a JavaScript shell, or `"always"`). Any other value is refused with the hosted tool's message and nothing is sent. Both are sent only when they are not the default, so an older API server is not handed unknown fields. Passing either in `options` is refused like any repeated parameter.
+- MCP `fetch` description names the returned fields (`data.title`, `content_markdown`, `content_text`, `page_text_chars`, `content_chars`, `scope_used`, `language`, `content_status`), that `render="auto"` costs up to 3 credits when the browser runs, and links https://clawifi.dev/docs/fetch.
+- MCP `search_free` description names the result fields (`url`, `title`, `snippet`, `rank`, `provider`, `published_at`/`modified_at` when the engine gives a date), says that an identical search within 60 seconds returns `cache_hit: true` for 0 credits, and links https://clawifi.dev/docs/search.
+- Test fixtures regenerated from the 1.12.1 models: `fetch` and `scrape` carry `content_status` (and `scrape` the `published_at`, `modified_at`, `fetched_at`, `date_source` fields), `search_free` carries `cache_hit`, `rate_limited`, `retry_after` and per-result dates, `account` carries `balance`, `organization`, `subscription`, `suspended`, and `monitor` carries `kind`, `query`, `search`, `notify_email`. Tests for the new `fetch` parameters.
+- README and skill: response field tables, `cache_hit` on search, `content_scope` and `render` on fetch, the new page fields, and dry-run quotes for `render`.
+- `server.json` and the User-Agent strings: 0.4.1. No SDK or CLI code change; `client.fetch(url, content_scope=..., render=...)` already passed through as keyword arguments.
+
 ## 0.4.0 (2026-10-22)
 
 For hosted API 1.7.2. Default hosts move to clawifi.dev.

@@ -74,7 +74,7 @@ class _BaseClient:
         self._dry_run_checked = False
 
     def _headers(self) -> dict[str, str]:
-        headers = {"Accept": "application/json", "User-Agent": "clawifi/0.4.0"}
+        headers = {"Accept": "application/json", "User-Agent": "clawifi/0.4.1"}
         if self.config.api_key:
             headers["Authorization"] = f"Bearer {self.config.api_key}"
         return headers

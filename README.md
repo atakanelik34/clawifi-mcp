@@ -10,7 +10,7 @@
 
 Official Python SDK, CLI, and MCP server for [Clawifi](https://clawifi.dev), web search and page reading for AI agents: search many engines as one, read pages and PDFs, map and crawl sites, and get back only the passages that answer the question, each with its source. One typed API and MCP surface for all of it.
 
-This package is a thin client over the hosted Clawifi API (hosted API version 1.7.2 at time of release); the Clawifi server is not included. Docs, pricing and status: [clawifi.dev/docs](https://clawifi.dev/docs) · [clawifi.dev/pricing](https://clawifi.dev/pricing) · [clawifi.dev/status](https://clawifi.dev/status) · [clawifi.dev/security](https://clawifi.dev/security).
+This package is a thin client over the hosted Clawifi API (hosted API version 1.12.1 at time of release); the Clawifi server is not included. Docs, pricing and status: [clawifi.dev/docs](https://clawifi.dev/docs) · [clawifi.dev/pricing](https://clawifi.dev/pricing) · [clawifi.dev/status](https://clawifi.dev/status) · [clawifi.dev/security](https://clawifi.dev/security).
 
 ## One-click install (hosted server, no key needed to try)
 
@@ -90,6 +90,8 @@ reading `CLAWIFI_API_KEY` from the environment. `clawifi mcp config` prints a mi
 
 The billable tools (`fetch`, `scrape`, `extract`, `map_site`, `crawl`, `search_free`) take their common options as parameters and any other API field in `options`, which is merged into the request body. They refuse `dry_run`: use the `estimate` tool to price a call. Arguments a tool does not declare are refused rather than ignored.
 
+`fetch` takes `content_scope` (`"main"`, the default, or `"full"` for the whole page text with scripts and styles removed) and `render` (`"never"`, the default; `"auto"` opens the browser only for a JavaScript shell; `"always"` reads in the browser). A browser render costs 3 credits instead of 1, and `estimate("fetch", {"url": ..., "render": "auto"})` quotes the range first. Any other value is refused and nothing is sent; both are sent only when they differ from the default. Each tool's description names the fields it returns (see [Response fields](#response-fields)).
+
 ## Remote MCP
 
 Clawifi also runs a hosted MCP server, so nothing needs installing:
@@ -129,7 +131,12 @@ An async client is also available as `clawifi.AsyncClawifi`.
 results = client.search_content("agent memory benchmarks", full=True)
 ```
 
-Responses are returned as the API sends them, so fields such as `published_at`, `modified_at` and `fetched_at` come through untouched.
+Responses are returned as the API sends them, so fields such as `published_at`, `modified_at` and `fetched_at` come through untouched. Request fields are passed through as keyword arguments too:
+
+```python
+page = client.fetch("https://example.com/pricing", content_scope="full")   # the whole page text
+page = client.fetch("https://app.example.com", render="auto")             # browser only for a JavaScript shell
+```
 
 ### Response fields
 
@@ -139,6 +146,11 @@ Every response field, and the fields a call does not return, is listed on the en
 [fetch](https://clawifi.dev/docs/api/post-fetch#response),
 [scrape](https://clawifi.dev/docs/api/post-scrape#response) and
 [extract](https://clawifi.dev/docs/api/post-extract#response).
+
+Some to know about (the search cache since hosted API 1.11.0, the page fields since 1.12.0):
+
+- `search_free`: `cache_hit` is `true` when an identical search within 60 seconds was answered from the cache; such an answer costs 0 credits. Each result carries `url`, `title`, `snippet`, `rank`, `provider` and, when the engine gives a date, `published_at` and `modified_at`.
+- `fetch`: `data.page_text_chars` (how much readable text the page holds), `data.content_chars` (the length of `content_markdown` before any `query` selection), `data.scope_used` (`main`, `whole`, `selector` or `full`) and `data.language` (the page's `<html lang>`). `mode_used` is `browser` when `render: "auto"` rendered a JavaScript shell; with the default `render: "never"` such a page answers `content_status: "needs_javascript"` and costs 0.
 
 ### Estimates (hosted API 1.7.0 and later)
 
@@ -163,9 +175,9 @@ A `429` raises `ClawifiAPIError` with `retry_after` (seconds, from the `Retry-Af
 
 | Tool | What it does |
 | --- | --- |
-| `fetch` | Fetch a single URL and return its extracted content. With `query`, only the passages that answer it. |
+| `fetch` | Fetch one URL (page or PDF) as Markdown. With `query`, only the passages that answer it; `content_scope="full"` for the whole page text; `render="auto"` opens the browser only for a JavaScript shell. |
 | `scrape` | Scrape a URL with source-aware routing and return structured content. With `query`, only the passages that answer it. |
-| `search_free` | Run a free-tier web search and return results. |
+| `search_free` | Search the web and return ranked results (`url`, `title`, `snippet`, `rank`, `provider`, dates when the engine gives them). An identical search within 60 s is a `cache_hit` for 0 credits. |
 | `extract` | Extract structured data from a URL. |
 | `map_site` | Map a site's discoverable URLs starting from a seed URL. |
 | `crawl` | Start an asynchronous crawl from a seed URL; returns a `crawl_id` to poll. |

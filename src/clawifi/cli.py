@@ -344,7 +344,7 @@ def _required_api_key() -> str:
 
 def _request(method: str, url: str, *, json_body: dict | None = None, token: str | None = None) -> dict:
     body = json.dumps(json_body or {}, separators=(",", ":")).encode("utf-8") if json_body is not None else None
-    headers = {"Content-Type": "application/json", "User-Agent": "clawifi-cli/0.4.0 (+https://clawifi.dev)"}
+    headers = {"Content-Type": "application/json", "User-Agent": "clawifi-cli/0.4.1 (+https://clawifi.dev)"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
     request = urllib.request.Request(url, data=body, method=method, headers=headers)

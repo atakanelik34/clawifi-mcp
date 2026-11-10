@@ -82,11 +82,38 @@ def _question(query: str | None, top_k: int) -> dict[str, Any]:
     return {"query": query, "top_k": top_k} if query and query.strip() else {}
 
 
+CONTENT_SCOPES = ("main", "full")
+RENDER_MODES = ("never", "auto", "always")
+
+
 @mcp.tool(title="Fetch a URL", annotations=WEB_READ)
-def fetch(url: str, query: str | None = None, top_k: int = 5, timeout_seconds: int = 15, options: Options = None, dry_run: DryRun = None) -> dict[str, Any]:
-    """Fetch a single URL and return its extracted content. With query, the text is only the top_k passages
-    that answer it, and data.query_selection gives their place in the page."""
-    body = _body(("url", url), dry_run, options, timeout_seconds=timeout_seconds, **_question(query, top_k))
+def fetch(
+    url: str,
+    query: str | None = None,
+    top_k: int = 5,
+    timeout_seconds: int = 15,
+    content_scope: str = "main",
+    render: str = "never",
+    options: Options = None,
+    dry_run: DryRun = None,
+) -> dict[str, Any]:
+    """Fetch one URL (page or PDF) as Markdown. query returns only the top_k passages that answer it. content_scope="full" returns the whole page text. render="auto" opens the browser only for a JavaScript shell (up to 3 credits). Returns data.title, content_markdown, content_text, page_text_chars, content_chars, scope_used, language and content_status; fields: https://clawifi.dev/docs/fetch"""
+    if content_scope not in CONTENT_SCOPES:
+        raise ToolError('content_scope must be "main" or "full"')
+    if render not in RENDER_MODES:
+        raise ToolError('render must be "never", "auto" or "always"')
+    # Both have a default that is not sent, so _body alone would let options smuggle a second value in (and
+    # options.render="always" would turn a 1-credit fetch into a 3-credit one): refuse them in options outright.
+    for key in ("content_scope", "render"):
+        if options and key in options:
+            raise ToolError(f"options.{key} repeats a parameter of this tool; pass it once, as the parameter")
+    body = _body(
+        ("url", url), dry_run, options, timeout_seconds=timeout_seconds,
+        # Sent only when they are not the default, so an older API server is not handed unknown fields.
+        content_scope=content_scope if content_scope != "main" else None,
+        render=render if render != "never" else None,
+        **_question(query, top_k),
+    )
     return _call(lambda client: client.fetch(url, **body))
 
 
@@ -114,7 +141,7 @@ def scrape(
 
 @mcp.tool(title="Free web search", annotations=WEB_READ)
 def search_free(query: str, options: Options = None, dry_run: DryRun = None) -> dict[str, Any]:
-    """Run a free-tier web search and return results."""
+    """Search the web and return ranked results: url, title, snippet, rank, provider, and published_at/modified_at when the engine gives a date. No page text; read a result with fetch. An identical search within 60 s returns cache_hit: true for 0 credits. Fields: https://clawifi.dev/docs/search"""
     body = _body(("query", query), dry_run, options)
     return _call(lambda client: client.search_free(query, **body))
 

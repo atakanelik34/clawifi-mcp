@@ -228,6 +228,70 @@ async def test_an_option_may_not_repeat_a_parameter(api):
 
 
 @pytest.mark.asyncio
+async def test_fetch_sends_content_scope_and_render_only_when_they_are_not_the_default(api):
+    await mcp_server.mcp.call_tool("fetch", {"url": "https://example.com"})
+    await mcp_server.mcp.call_tool("fetch", {"url": "https://example.com", "content_scope": "main", "render": "never"})
+    await mcp_server.mcp.call_tool("fetch", {"url": "https://example.com", "content_scope": "full"})
+    await mcp_server.mcp.call_tool("fetch", {"url": "https://example.com", "render": "auto", "query": "price", "top_k": 2})
+    await mcp_server.mcp.call_tool("fetch", {"url": "https://example.com", "content_scope": "full", "render": "always", "options": {"force_browser": True}})
+    assert api == [
+        ("POST", "/fetch", {"url": "https://example.com", "timeout_seconds": 15}),
+        ("POST", "/fetch", {"url": "https://example.com", "timeout_seconds": 15}),
+        ("POST", "/fetch", {"url": "https://example.com", "timeout_seconds": 15, "content_scope": "full"}),
+        ("POST", "/fetch", {"url": "https://example.com", "timeout_seconds": 15, "render": "auto", "query": "price", "top_k": 2}),
+        ("POST", "/fetch", {"url": "https://example.com", "timeout_seconds": 15, "content_scope": "full", "render": "always", "force_browser": True}),
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "arguments,expected",
+    [
+        ({"url": "u", "content_scope": "whole"}, 'content_scope must be "main" or "full"'),
+        ({"url": "u", "content_scope": ""}, 'content_scope must be "main" or "full"'),
+        ({"url": "u", "render": "browser"}, 'render must be "never", "auto" or "always"'),
+        ({"url": "u", "render": "Auto"}, 'render must be "never", "auto" or "always"'),
+    ],
+)
+async def test_fetch_refuses_unknown_content_scope_and_render_values_before_anything_is_sent(api, arguments, expected):
+    with pytest.raises(ToolError) as raised:
+        await mcp_server.mcp.call_tool("fetch", arguments)
+    assert str(raised.value).endswith(expected)  # FastMCP prefixes "Error executing tool fetch: "
+    assert api == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "arguments,key",
+    [
+        ({"url": "u", "content_scope": "full", "options": {"content_scope": "main"}}, "content_scope"),
+        ({"url": "u", "render": "auto", "options": {"render": "always"}}, "render"),
+        # At the default too: the parameter is the only way to set them, so options cannot smuggle a second value in.
+        ({"url": "u", "options": {"content_scope": "full"}}, "content_scope"),
+        ({"url": "u", "render": "never", "options": {"render": "always"}}, "render"),
+    ],
+)
+async def test_fetch_refuses_content_scope_and_render_repeated_in_options(api, arguments, key):
+    with pytest.raises(ToolError, match=f"options.{key} repeats a parameter of this tool"):
+        await mcp_server.mcp.call_tool("fetch", arguments)
+    assert api == []
+
+
+@pytest.mark.asyncio
+async def test_fetch_and_search_free_descriptions_name_the_fields_and_the_docs():
+    tools = {tool.name: tool for tool in await mcp_server.mcp.list_tools()}
+    fetch = tools["fetch"]
+    assert fetch.inputSchema["properties"]["content_scope"]["default"] == "main"
+    assert fetch.inputSchema["properties"]["render"]["default"] == "never"
+    assert fetch.inputSchema["required"] == ["url"]
+    for field in ("data.title", "content_markdown", "content_text", "page_text_chars", "content_chars", "scope_used", "language", "content_status", "https://clawifi.dev/docs/fetch"):
+        assert field in fetch.description, field
+    for field in ("url, title, snippet, rank, provider", "published_at/modified_at", "cache_hit: true", "https://clawifi.dev/docs/search"):
+        assert field in tools["search_free"].description, field
+    assert "\n" not in fetch.description and "\n" not in tools["search_free"].description
+
+
+@pytest.mark.asyncio
 async def test_estimate_and_list_tools_through_call_tool(api):
     await mcp_server.mcp.call_tool("estimate", {"operation": "crawl", "args": {"seed_url": "https://example.com", "max_pages": 3}})
     await mcp_server.mcp.call_tool("list_history", {"limit": 5, "operation": "search_free"})

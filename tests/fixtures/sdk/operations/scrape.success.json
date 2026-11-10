@@ -1,8 +1,11 @@
 {
   "artifacts": [],
   "cache_hit": false,
+  "content_status": "ok",
+  "date_source": null,
   "diagnostics": null,
   "errors": [],
+  "fetched_at": null,
   "final_url": "https://example.com/",
   "format_results": {
     "markdown": {
@@ -21,6 +24,8 @@
     "title": "Example Domain"
   },
   "mode_used": "http_fetch",
+  "modified_at": null,
+  "published_at": null,
   "query_selection": null,
   "source": "generic_web",
   "success": true,

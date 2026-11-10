@@ -1,5 +1,6 @@
 {
   "cache_hit": false,
+  "content_status": "thin",
   "data": {
     "content_text": "Example Domain",
     "entity_type": "WebDocument",

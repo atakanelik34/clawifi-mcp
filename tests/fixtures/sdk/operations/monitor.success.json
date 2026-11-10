@@ -16,15 +16,19 @@
         "markdown"
       ],
       "include_selectors": [],
+      "kind": "page",
       "last_tick_at": null,
       "mode": "auto",
       "monitor_id": "mon_sdk_fixture",
       "name": "Docs monitor",
       "next_tick_at": "2026-01-01T12:00:00Z",
+      "notify_email": false,
+      "query": null,
       "schedule": {
         "interval_seconds": 900,
         "type": "interval"
       },
+      "search": null,
       "status": "active",
       "tick_credit_quote": 1,
       "timeout_seconds": 30,

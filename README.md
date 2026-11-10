@@ -147,7 +147,7 @@ Every response field, and the fields a call does not return, is listed on the en
 [scrape](https://clawifi.dev/docs/api/post-scrape#response) and
 [extract](https://clawifi.dev/docs/api/post-extract#response).
 
-Some to know about (the search cache since hosted API 1.11.0, the page fields since 1.12.0):
+Fields worth knowing (the search cache since hosted API 1.11.0, the page fields since 1.12.0):
 
 - `search_free`: `cache_hit` is `true` when an identical search within 60 seconds was answered from the cache; such an answer costs 0 credits. Each result carries `url`, `title`, `snippet`, `rank`, `provider` and, when the engine gives a date, `published_at` and `modified_at`.
 - `fetch`: `data.page_text_chars` (how much readable text the page holds), `data.content_chars` (the length of `content_markdown` before any `query` selection), `data.scope_used` (`main`, `whole`, `selector` or `full`) and `data.language` (the page's `<html lang>`). `mode_used` is `browser` when `render: "auto"` rendered a JavaScript shell; with the default `render: "never"` such a page answers `content_status: "needs_javascript"` and costs 0.
